@@ -1,0 +1,38 @@
+# Local agent/tool metadata
+.agents/
+.codex/
+.repo.git/
+
+# Dataset directories
+**/TrainingData/
+**/training_data/
+**/data/
+**/datasets/
+
+# Model parameter and checkpoint directories
+**/parameters/
+**/params/
+**/backbone_params/
+
+# Generated experiment outputs
+nnUNet_results/
+**/Logs/
+
+# Model archives and weights
+*.tar.gz
+*.pt
+*.pth
+*.ckpt
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# Cluster job output
+*.o[0-9]*
+*.e[0-9]*
+
+# Editor/OS files
+.DS_Store
+.idea/
+.vscode/

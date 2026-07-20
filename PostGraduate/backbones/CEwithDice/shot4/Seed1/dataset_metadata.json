@@ -1,0 +1,15 @@
+{
+  "source_domain": "SIEMENS_SymphonyTim_37743_T1-TSE",
+  "shot": 4,
+  "seed": 1,
+  "loss_mode": "PureCE",
+  "train_case_ids": [
+    "72",
+    "31",
+    "126",
+    "53"
+  ],
+  "n_train_slices": 47,
+  "min_fg_ratio": 0.05,
+  "resize_hw": 224
+}

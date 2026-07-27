@@ -1,0 +1,2 @@
+domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
+vendor_D_Canon,1,MeanTeacher_Patient1_Seed1_teacher_SPEGC-online-phase1,50,50,0.19186427659375865,0.2676487378404516,0.28343237291679996,0.24764846245033675,300.04866946930736,145.00717054506438,256.87427643893517,233.97670548443566

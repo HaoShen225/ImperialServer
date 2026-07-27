@@ -1,0 +1,2 @@
+domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
+vendor_B_Philips,3,MeanTeacher_Patient2_Seed3_teacher_SPEGC-online,125,125,0.0351492095247092,0.03839965055014979,0.04005193173256255,0.03786693060247385,278.584640680655,274.6579481772328,515.1609421195211,356.134510325803

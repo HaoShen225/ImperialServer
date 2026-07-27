@@ -17,6 +17,9 @@
 # Generated experiment outputs
 nnUNet_results/
 **/Logs/
+Research/tent_results/
+Research/grata_results/
+Research/sar_results/
 
 # Model archives and weights
 *.tar.gz
@@ -27,6 +30,9 @@ nnUNet_results/
 # Python caches
 **/__pycache__/
 *.py[cod]
+*.so
+**/build/
+*.egg-info/
 
 # Cluster job output
 *.o[0-9]*

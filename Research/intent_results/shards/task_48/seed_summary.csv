@@ -1,0 +1,2 @@
+domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
+vendor_A_Siemens,2,MeanTeacher_Patient3_Seed2_teacher_InTEnt,95,95,0.7483956067504803,0.7053765805072507,0.820092246757367,0.7579548113383661,8.298517589632127,6.68249429016423,6.707200612239362,7.229404164011906

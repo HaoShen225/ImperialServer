@@ -1,0 +1,2 @@
+domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
+vendor_D_Canon,3,MeanTeacher_Patient2_Seed3_teacher_InTEnt,50,50,0.738928014311677,0.7639785515081562,0.8221944971843504,0.7750336876680611,18.151936578622365,11.020344542156751,9.6621867846087,12.944822635129272

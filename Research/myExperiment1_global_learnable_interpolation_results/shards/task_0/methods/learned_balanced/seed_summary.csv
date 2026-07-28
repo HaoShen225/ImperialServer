@@ -1,0 +1,2 @@
+domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
+vendor_A_Siemens,0,MeanTeacher_Patient1_Seed0_GlobalLearnableInterpolation-Balanced,95,95,0.16442696656630434,0.41804369351058135,0.581329374993517,0.3879333450234676,182.1192963116063,57.44610455362603,33.28863937282724,90.95134674601985

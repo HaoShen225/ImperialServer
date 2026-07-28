@@ -1,0 +1,21 @@
+{
+  "checkpoint_alias_storage": "hardlink",
+  "status": "complete",
+  "summary": {
+    "best_train_loss": 0.027279552666986562,
+    "checkpoint": "/rds/general/user/hs225/home/TTA_Project_runs/Research/backbone_params_cleanSource/B/seed3/baseline_model_with_metadata.pt",
+    "debug_limited_training": false,
+    "epochs": 200,
+    "final_cross_entropy": 0.009632678025020623,
+    "final_dice_loss": 0.06267528523163624,
+    "final_train_loss": 0.04097032051039747,
+    "run_dir": "/rds/general/user/hs225/home/TTA_Project_runs/Research/backbone_params_cleanSource/B/seed3",
+    "seed": 3,
+    "source_domain": "vendor_B_Philips",
+    "source_patient_count": 125,
+    "source_slice_count": 2642,
+    "source_vendor": "B",
+    "status": "complete",
+    "task_id": 8
+  }
+}

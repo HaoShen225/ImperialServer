@@ -1,0 +1,21 @@
+{
+  "checkpoint_alias_storage": "hardlink",
+  "status": "complete",
+  "summary": {
+    "best_train_loss": 0.1714347899764133,
+    "checkpoint": "/rds/general/user/hs225/home/TTA_Project_runs/Research/backbone_params_cleanSource_LN/A/seed0/baseline_model_with_metadata.pt",
+    "debug_limited_training": false,
+    "epochs": 200,
+    "final_cross_entropy": 0.002830333548778896,
+    "final_dice_loss": 0.3377832401570656,
+    "final_train_loss": 0.17172195422027609,
+    "run_dir": "/rds/general/user/hs225/home/TTA_Project_runs/Research/backbone_params_cleanSource_LN/A/seed0",
+    "seed": 0,
+    "source_domain": "vendor_A_Siemens",
+    "source_patient_count": 95,
+    "source_slice_count": 2212,
+    "source_vendor": "A",
+    "status": "complete",
+    "task_id": 0
+  }
+}

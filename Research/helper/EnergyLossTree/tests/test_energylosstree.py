@@ -1,12 +1,13 @@
-"""Tests for windowed EnergyLossTree pseudo-label propagation."""
+"""Tests for global and windowed EnergyLossTree pseudo-label propagation."""
 
 import math
 import unittest
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import torch
 
 from Research.helper.EnergyLossTree import (
+    DEFAULT_SPATIAL_TEMPERATURE,
     DualTreePseudoLabels,
     make_pseudo_label_weights,
     propagate_dual_tree_pseudo_labels,
@@ -45,6 +46,9 @@ def _require_cuda_extension() -> None:
 
 
 class EnergyLossTreeCpuTests(unittest.TestCase):
+    def test_default_spatial_temperature_is_sixteen_pixels(self) -> None:
+        self.assertEqual(DEFAULT_SPATIAL_TEMPERATURE, 16.0)
+
     def test_default_weights_are_float32_ones(self) -> None:
         probabilities = _probabilities(batch=2, height=5, width=6)
         weights = make_pseudo_label_weights(probabilities)
@@ -75,6 +79,63 @@ class EnergyLossTreeCpuTests(unittest.TestCase):
                 stride=4,
             )
         self.assertTrue(torch.equal(probabilities, original))
+
+    def test_optional_window_and_temperature_validation_precede_cuda(self) -> None:
+        probabilities = _probabilities(height=4, width=4)
+        guidance = torch.randn(1, 3, 4, 4)
+        for window_size, stride in ((None, 2), (4, None)):
+            with self.subTest(window_size=window_size, stride=stride):
+                with self.assertRaisesRegex(ValueError, "both be provided or both be None"):
+                    windowed_tree_propagation(
+                        probabilities,
+                        guidance,
+                        window_size=window_size,
+                        stride=stride,
+                    )
+
+        for temperature in (0.0, -1.0, math.inf, math.nan, True):
+            with self.subTest(spatial_temperature=temperature):
+                with self.assertRaisesRegex(ValueError, "spatial_temperature"):
+                    windowed_tree_propagation(
+                        probabilities,
+                        guidance,
+                        spatial_temperature=temperature,
+                    )
+
+    def test_tree_edge_affinity_combines_feature_and_path_distance(self) -> None:
+        flat_guidance = torch.tensor([[[0.0, 2.0, 2.0, 2.0]]])
+        sorted_index = torch.tensor([[0, 1, 2, 3]], dtype=torch.int32)
+        sorted_parent = torch.tensor([[0, 0, 1, 2]], dtype=torch.int32)
+        affinity = implementation._tree_edge_affinities(
+            flat_guidance,
+            sorted_index,
+            sorted_parent,
+            width=4,
+            sigma=2.0,
+            spatial_temperature=4.0,
+        )
+        expected = torch.tensor(
+            [[1.0, math.exp(-2.0 - 0.25), math.exp(-0.25), math.exp(-0.25)]]
+        )
+        torch.testing.assert_close(affinity, expected)
+        self.assertAlmostEqual(
+            float(affinity[0, 1:].prod()),
+            math.exp(-2.0 - 3.0 / 4.0),
+            places=6,
+        )
+
+        feature_only = implementation._tree_edge_affinities(
+            flat_guidance,
+            sorted_index,
+            sorted_parent,
+            width=4,
+            sigma=2.0,
+            spatial_temperature=None,
+        )
+        torch.testing.assert_close(
+            feature_only,
+            torch.tensor([[1.0, math.exp(-2.0), 1.0, 1.0]]),
+        )
 
     def test_compiled_boruvka_mst_forward(self) -> None:
         try:
@@ -134,6 +195,46 @@ class EnergyLossTreeCudaTests(unittest.TestCase):
         )
         torch.testing.assert_close(implicit, explicit, rtol=1e-5, atol=1e-6)
 
+    def test_default_global_mode_matches_image_sized_window(self) -> None:
+        probabilities = _probabilities(height=4, width=5, device="cuda")
+        guidance = torch.randn(1, 3, 4, 5, device="cuda")
+        global_output = windowed_tree_propagation(
+            probabilities,
+            guidance,
+            sigma=0.7,
+            spatial_temperature=2.0,
+        )
+        explicit_window = windowed_tree_propagation(
+            probabilities,
+            guidance,
+            window_size=(4, 5),
+            stride=(4, 5),
+            sigma=0.7,
+            spatial_temperature=2.0,
+        )
+        torch.testing.assert_close(global_output, explicit_window, rtol=1e-5, atol=1e-6)
+
+    def test_temperature_controls_long_range_influence(self) -> None:
+        probabilities = torch.tensor(
+            [[[[0.0, 1.0, 1.0, 1.0, 1.0]], [[1.0, 0.0, 0.0, 0.0, 0.0]]]],
+            device="cuda",
+        )
+        guidance = torch.zeros(1, 1, 1, 5, device="cuda")
+        strong_decay = windowed_tree_propagation(
+            probabilities,
+            guidance,
+            spatial_temperature=0.5,
+        )
+        weak_decay = windowed_tree_propagation(
+            probabilities,
+            guidance,
+            spatial_temperature=100.0,
+        )
+        self.assertLess(
+            float(strong_decay[0, 1, 0, -1]),
+            float(weak_decay[0, 1, 0, -1]),
+        )
+
     def test_single_weighted_seed_propagates_through_constant_tree(self) -> None:
         probabilities = _probabilities(classes=3, height=3, width=4, device="cuda")
         guidance = torch.zeros(1, 2, 3, 4, device="cuda")
@@ -185,6 +286,20 @@ class EnergyLossTreeCudaTests(unittest.TestCase):
             atol=1e-5,
         )
 
+    def test_default_full_image_256_smoke(self) -> None:
+        probabilities = _probabilities(height=256, width=256, device="cuda")
+        guidance = torch.randn(1, 2, 64, 64, device="cuda")
+        output = windowed_tree_propagation(probabilities, guidance)
+        self.assertEqual(output.shape, probabilities.shape)
+        self.assertFalse(output.requires_grad)
+        self.assertTrue(bool(torch.isfinite(output).all()))
+        torch.testing.assert_close(
+            output.sum(dim=1),
+            torch.ones_like(output[:, 0]),
+            rtol=1e-5,
+            atol=1e-5,
+        )
+
     def test_dual_trees_are_parallel_and_independent(self) -> None:
         probabilities = _probabilities(height=5, width=6, device="cuda")
         shallow = torch.randn(1, 2, 5, 6, device="cuda")
@@ -227,15 +342,23 @@ class EnergyLossTreeCudaTests(unittest.TestCase):
             dtype=torch.float32,
         )
         sigma = 0.73
-        expected = _reference_tree_filter(probabilities, guidance, sigma)
-        actual = windowed_tree_propagation(
-            probabilities.cuda(),
-            guidance.cuda(),
-            window_size=(2, 3),
-            stride=(2, 3),
-            sigma=sigma,
-        ).cpu()
-        torch.testing.assert_close(actual, expected, rtol=2e-5, atol=2e-6)
+        for temperature in (DEFAULT_SPATIAL_TEMPERATURE, None):
+            with self.subTest(spatial_temperature=temperature):
+                expected = _reference_tree_filter(
+                    probabilities,
+                    guidance,
+                    sigma,
+                    spatial_temperature=temperature,
+                )
+                actual = windowed_tree_propagation(
+                    probabilities.cuda(),
+                    guidance.cuda(),
+                    window_size=(2, 3),
+                    stride=(2, 3),
+                    sigma=sigma,
+                    spatial_temperature=temperature,
+                ).cpu()
+                torch.testing.assert_close(actual, expected, rtol=2e-5, atol=2e-6)
 
 
 def _boruvka_tree(
@@ -289,6 +412,8 @@ def _reference_tree_filter(
     probabilities: torch.Tensor,
     guidance: torch.Tensor,
     sigma: float,
+    *,
+    spatial_temperature: Optional[float] = DEFAULT_SPATIAL_TEMPERATURE,
 ) -> torch.Tensor:
     _, classes, height, width = probabilities.shape
     vertex_count = height * width
@@ -310,7 +435,16 @@ def _reference_tree_filter(
     tree = _boruvka_tree(vertex_count, edges)
     adjacency: List[List[Tuple[int, float]]] = [[] for _ in range(vertex_count)]
     for source, target, distance in tree:
-        affinity = math.exp(-distance / sigma)
+        spatial_distance = math.hypot(
+            source // width - target // width,
+            source % width - target % width,
+        )
+        spatial_exponent = (
+            0.0
+            if spatial_temperature is None
+            else spatial_distance / spatial_temperature
+        )
+        affinity = math.exp(-distance / sigma - spatial_exponent)
         adjacency[source].append((target, affinity))
         adjacency[target].append((source, affinity))
 

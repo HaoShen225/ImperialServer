@@ -38,6 +38,10 @@ Research/sar_results/
 *.o[0-9]*
 *.e[0-9]*
 
+# Concurrent result-summary lock files
+.run_summary.lock
+.summary.lock
+
 # Editor/OS files
 .DS_Store
 .idea/

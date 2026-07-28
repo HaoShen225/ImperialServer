@@ -39,11 +39,33 @@ targets = propagate_dual_tree_pseudo_labels(
     source_logits.softmax(dim=1),
     shallow_guidance,
     deep_guidance,
-    window_size=64,
-    stride=32,
 )
 shallow_target, deep_target = targets.shallow, targets.deep
 ```
 
-No pseudo-label weight map is passed in this initial configuration, so both
-trees use uniform all-one weights.
+This default performs full-image propagation and applies the same 16-pixel
+spatial temperature to both trees. For every tree edge, the feature and
+spatial terms are combined as
+`exp(-feature_distance / sigma - spatial_distance / spatial_temperature)`.
+Consequently, a source label's spatial influence decays as
+`exp(-tree_path_length / spatial_temperature)`. Distances are measured in
+pseudo-label pixels after guidance interpolation.
+
+Local window propagation remains available as an explicit option:
+
+```python
+windowed_targets = propagate_dual_tree_pseudo_labels(
+    source_logits.softmax(dim=1),
+    shallow_guidance,
+    deep_guidance,
+    window_size=64,
+    stride=32,
+)
+```
+
+Pass `spatial_temperature=None` to disable geometric path decay and reproduce
+the previous feature-only affinity. `window_size` and `stride` must either
+both be omitted or both be supplied.
+
+No pseudo-label weight map is passed in these examples, so both trees use
+uniform all-one weights.

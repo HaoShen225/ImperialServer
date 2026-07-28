@@ -1,15 +1,18 @@
-"""Windowed dual-tree propagation for source-model segmentation pseudo labels.
+"""Dual-tree propagation for source-model segmentation pseudo labels.
 
 The implementation follows the minimum-spanning-tree filter used by Tree
 Energy Loss, but applies the filter independently to caller-provided shallow
-and deep guidance features.  Pseudo targets are deliberately generated under
+and deep guidance features.  Propagation is global by default; callers can
+optionally restrict it to overlapping local windows.  Pseudo targets are
+deliberately generated under
 ``torch.no_grad``: gradients for test-time adaptation should be taken against
 the returned targets, not through the target-generation path.
 
 The CUDA extension is vendored in this package and must be built before tree
 propagation is used.  Weight generation policies intentionally live outside
 this module.  Omitting ``pseudo_label_weights`` means uniform (all-one)
-weights, which is the default for the initial experiments.
+weights.  Spatial path decay is enabled by default with a 16-pixel
+temperature and can be disabled by passing ``spatial_temperature=None``.
 """
 
 from dataclasses import dataclass
@@ -24,6 +27,7 @@ import torch.nn.functional as F
 
 SizeArg = Union[int, Sequence[int]]
 SpatialSize = Tuple[int, int]
+DEFAULT_SPATIAL_TEMPERATURE = 16.0
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,27 @@ def _as_pair(value: SizeArg, name: str) -> SpatialSize:
     if pair[0] <= 0 or pair[1] <= 0:
         raise ValueError(f"{name} entries must be positive, got {pair}.")
     return pair
+
+
+def _positive_scale(
+    value: Optional[float],
+    name: str,
+    *,
+    allow_none: bool = False,
+) -> Optional[float]:
+    if value is None:
+        if allow_none:
+            return None
+        raise ValueError(f"{name} must be a positive number.")
+    if (
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not math.isfinite(float(value))
+        or float(value) <= 0
+    ):
+        suffix = " or None" if allow_none else ""
+        raise ValueError(f"{name} must be a positive number{suffix}.")
+    return float(value)
 
 
 def _validate_probability_shape(source_probabilities: torch.Tensor) -> None:
@@ -222,12 +247,46 @@ def _grid_edges(
     return edges.unsqueeze(0).expand(batch, -1, -1).contiguous()
 
 
+def _tree_edge_affinities(
+    flat_guidance: torch.Tensor,
+    sorted_index: torch.Tensor,
+    sorted_parent: torch.Tensor,
+    *,
+    width: int,
+    sigma: float,
+    spatial_temperature: Optional[float],
+) -> torch.Tensor:
+    gather_index = sorted_index.unsqueeze(1).expand(-1, flat_guidance.shape[1], -1).long()
+    bfs_guidance = torch.gather(flat_guidance, 2, gather_index)
+    parent_index = sorted_parent.unsqueeze(1).expand_as(gather_index).long()
+    parent_guidance = torch.gather(bfs_guidance, 2, parent_index)
+    tree_edge_distance = (bfs_guidance - parent_guidance).square().sum(dim=1)
+    affinity_exponent = tree_edge_distance / float(sigma)
+
+    if spatial_temperature is not None:
+        bfs_vertex = sorted_index.long()
+        bfs_y = torch.div(bfs_vertex, width, rounding_mode="floor").to(torch.float32)
+        bfs_x = torch.remainder(bfs_vertex, width).to(torch.float32)
+        parent_position = sorted_parent.long()
+        parent_y = torch.gather(bfs_y, 1, parent_position)
+        parent_x = torch.gather(bfs_x, 1, parent_position)
+        spatial_edge_distance = torch.sqrt(
+            (bfs_y - parent_y).square() + (bfs_x - parent_x).square()
+        )
+        affinity_exponent = (
+            affinity_exponent + spatial_edge_distance / float(spatial_temperature)
+        )
+
+    return torch.exp(-affinity_exponent).contiguous()
+
+
 def _tree_filter_window_batch(
     probabilities: torch.Tensor,
     guidance: torch.Tensor,
     weights: torch.Tensor,
     *,
     sigma: float,
+    spatial_temperature: Optional[float],
     eps: float,
 ) -> torch.Tensor:
     extension = _load_tree_filter_cuda()
@@ -250,13 +309,14 @@ def _tree_filter_window_batch(
     tree = extension.mst_forward(edge_index, edge_distance + 1.0, vertex_count)
     sorted_index, sorted_parent, sorted_child = extension.bfs_forward(tree, 4)
 
-    flat_guidance = guidance.reshape(batch, guidance.shape[1], vertex_count)
-    gather_index = sorted_index.unsqueeze(1).expand(-1, flat_guidance.shape[1], -1).long()
-    bfs_guidance = torch.gather(flat_guidance, 2, gather_index)
-    parent_index = sorted_parent.unsqueeze(1).expand_as(gather_index).long()
-    parent_guidance = torch.gather(bfs_guidance, 2, parent_index)
-    tree_edge_distance = (bfs_guidance - parent_guidance).square().sum(dim=1)
-    tree_edge_affinity = torch.exp(-tree_edge_distance / float(sigma)).contiguous()
+    tree_edge_affinity = _tree_edge_affinities(
+        guidance.reshape(batch, guidance.shape[1], vertex_count),
+        sorted_index,
+        sorted_parent,
+        width=width,
+        sigma=sigma,
+        spatial_temperature=spatial_temperature,
+    )
 
     weighted_probabilities = probabilities * weights
     filter_input = torch.cat((weighted_probabilities, weights), dim=1)
@@ -281,22 +341,28 @@ def windowed_tree_propagation(
     source_probabilities: torch.Tensor,
     guidance: torch.Tensor,
     *,
-    window_size: SizeArg,
-    stride: SizeArg,
+    window_size: Optional[SizeArg] = None,
+    stride: Optional[SizeArg] = None,
     pseudo_label_weights: Optional[torch.Tensor] = None,
     sigma: float = 1.0,
+    spatial_temperature: Optional[float] = DEFAULT_SPATIAL_TEMPERATURE,
     window_batch_size: int = 16,
     eps: float = 1e-6,
 ) -> torch.Tensor:
-    """Propagate soft pseudo labels on independent window-local MSTs.
+    """Propagate soft pseudo labels on a global or optional window-local MST.
 
     Args:
         source_probabilities: Softmax probabilities shaped ``[B, C, H, W]``.
         guidance: Caller-provided guidance features shaped ``[B, F, h, w]``.
-        window_size: Required spatial window size at pseudo-label resolution.
-        stride: Required window stride.  It cannot exceed ``window_size``.
+        window_size: Optional spatial window size at pseudo-label resolution.
+            ``None`` selects full-image propagation and requires ``stride=None``.
+        stride: Window stride when ``window_size`` is provided.  It cannot
+            exceed ``window_size``.
         pseudo_label_weights: Optional non-negative map.  ``None`` means ones.
         sigma: Positive scale in ``exp(-squared_distance / sigma)``.
+        spatial_temperature: Positive pixel scale in the spatial path factor
+            ``exp(-path_length / spatial_temperature)``.  ``None`` disables
+            spatial decay.
         window_batch_size: Maximum number of windows sent to the extension.
         eps: Numerical floor for weighted normalization.
 
@@ -305,36 +371,43 @@ def windowed_tree_propagation(
     """
 
     probabilities = _prepare_probabilities(source_probabilities)
-    if probabilities.device.type != "cuda":
-        raise RuntimeError("EnergyLossTree propagation requires CUDA tensors.")
-    window = _as_pair(window_size, "window_size")
-    step = _as_pair(stride, "stride")
-    if step[0] > window[0] or step[1] > window[1]:
-        raise ValueError(f"stride {step} cannot exceed window_size {window}.")
+    batch, _, height, width = probabilities.shape
+
+    if (window_size is None) != (stride is None):
+        raise ValueError("window_size and stride must either both be provided or both be None.")
+    if window_size is None:
+        window = (height, width)
+        step = (height, width)
+        use_windows = False
+    else:
+        assert stride is not None
+        window = _as_pair(window_size, "window_size")
+        step = _as_pair(stride, "stride")
+        if step[0] > window[0] or step[1] > window[1]:
+            raise ValueError(f"stride {step} cannot exceed window_size {window}.")
+        use_windows = True
+
     if not isinstance(window_batch_size, Integral) or isinstance(window_batch_size, bool):
         raise TypeError("window_batch_size must be an integer.")
     if int(window_batch_size) <= 0:
         raise ValueError("window_batch_size must be positive.")
-    if (
-        not isinstance(sigma, (int, float))
-        or isinstance(sigma, bool)
-        or not math.isfinite(float(sigma))
-        or float(sigma) <= 0
-    ):
-        raise ValueError("sigma must be a positive number.")
-    if (
-        not isinstance(eps, (int, float))
-        or isinstance(eps, bool)
-        or not math.isfinite(float(eps))
-        or float(eps) <= 0
-    ):
-        raise ValueError("eps must be a positive number.")
+    validated_sigma = _positive_scale(sigma, "sigma")
+    validated_temperature = _positive_scale(
+        spatial_temperature,
+        "spatial_temperature",
+        allow_none=True,
+    )
+    validated_eps = _positive_scale(eps, "eps")
+    assert validated_sigma is not None
+    assert validated_eps is not None
+
+    if probabilities.device.type != "cuda":
+        raise RuntimeError("EnergyLossTree propagation requires CUDA tensors.")
 
     prepared_guidance = _validate_guidance(guidance, probabilities, "guidance")
     weights = make_pseudo_label_weights(probabilities, pseudo_label_weights)
     _load_tree_filter_cuda()
 
-    batch, _, height, width = probabilities.shape
     window_height = min(height, window[0])
     window_width = min(width, window[1])
     y_starts = _axis_starts(height, window[0], step[0])
@@ -352,12 +425,19 @@ def windowed_tree_propagation(
         device=probabilities.device,
         dtype=probabilities.dtype,
     )
-    blend = _raised_cosine_window(
-        window_height,
-        window_width,
-        device=probabilities.device,
-        dtype=probabilities.dtype,
-    )
+    if use_windows:
+        blend = _raised_cosine_window(
+            window_height,
+            window_width,
+            device=probabilities.device,
+            dtype=probabilities.dtype,
+        )
+    else:
+        blend = torch.ones(
+            (1, window_height, window_width),
+            device=probabilities.device,
+            dtype=probabilities.dtype,
+        )
 
     chunk_size = int(window_batch_size)
     for chunk_start in range(0, len(locations), chunk_size):
@@ -402,8 +482,9 @@ def windowed_tree_propagation(
             probability_windows,
             guidance_windows,
             weight_windows,
-            sigma=float(sigma),
-            eps=float(eps),
+            sigma=validated_sigma,
+            spatial_temperature=validated_temperature,
+            eps=validated_eps,
         )
 
         for local_index, (batch_index, y_start, x_start) in enumerate(chunk):
@@ -416,7 +497,7 @@ def windowed_tree_propagation(
         raise RuntimeError("Internal window coverage error: at least one output pixel was not covered.")
     output = output / coverage
     output = output.clamp_min_(0.0)
-    output = output / output.sum(dim=1, keepdim=True).clamp_min_(float(eps))
+    output = output / output.sum(dim=1, keepdim=True).clamp_min_(validated_eps)
     return output.detach()
 
 
@@ -426,15 +507,20 @@ def propagate_dual_tree_pseudo_labels(
     shallow_guidance: torch.Tensor,
     deep_guidance: torch.Tensor,
     *,
-    window_size: SizeArg,
-    stride: SizeArg,
+    window_size: Optional[SizeArg] = None,
+    stride: Optional[SizeArg] = None,
     pseudo_label_weights: Optional[torch.Tensor] = None,
     shallow_sigma: float = 0.02,
     deep_sigma: float = 1.0,
+    spatial_temperature: Optional[float] = DEFAULT_SPATIAL_TEMPERATURE,
     window_batch_size: int = 16,
     eps: float = 1e-6,
 ) -> DualTreePseudoLabels:
-    """Generate independent shallow-tree and deep-tree pseudo targets."""
+    """Generate independent shallow-tree and deep-tree pseudo targets.
+
+    Both trees share ``spatial_temperature`` so their difference is determined
+    by the caller-provided guidance and feature-affinity scales.
+    """
 
     shallow = windowed_tree_propagation(
         source_probabilities,
@@ -443,6 +529,7 @@ def propagate_dual_tree_pseudo_labels(
         stride=stride,
         pseudo_label_weights=pseudo_label_weights,
         sigma=shallow_sigma,
+        spatial_temperature=spatial_temperature,
         window_batch_size=window_batch_size,
         eps=eps,
     )
@@ -453,6 +540,7 @@ def propagate_dual_tree_pseudo_labels(
         stride=stride,
         pseudo_label_weights=pseudo_label_weights,
         sigma=deep_sigma,
+        spatial_temperature=spatial_temperature,
         window_batch_size=window_batch_size,
         eps=eps,
     )
@@ -460,6 +548,7 @@ def propagate_dual_tree_pseudo_labels(
 
 
 __all__ = [
+    "DEFAULT_SPATIAL_TEMPERATURE",
     "DualTreePseudoLabels",
     "make_pseudo_label_weights",
     "propagate_dual_tree_pseudo_labels",

@@ -1,7 +1,0 @@
-loss_mode,shot,seed,domain,n_cases,n_slices,case_dice,case_hd95,slice_dice,slice_hd95,excluded_case_ids,output_dir
-PureCE,3,0,Philips_Medical_Systems_Ingenia_70714_T1-TSE,11,118,0.6558982489235756,63.2976710722229,0.6528310313613065,62.15308874057671,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0
-PureCE,3,0,Philips_Medical_Systems_Ingenia_70714_T2-TSE,15,159,0.591522317491605,41.62123340274557,0.5901567993049025,46.245229045614785,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0
-PureCE,3,0,SIEMENS_Aera_141639_T1-TSE,13,138,0.7788021403319083,15.593681818208331,0.7758636587346162,19.711405963649398,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0
-PureCE,3,0,SIEMENS_Aera_141639_T2-TSE,10,109,0.7092433928755746,23.196097877161254,0.7088564364490869,27.39873791737897,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0
-PureCE,3,0,SIEMENS_SymphonyTim_37743_T1-TSE,16,186,0.8379870352084315,6.700988790888008,0.8357631683221236,10.165233751763456,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0
-PureCE,3,0,SIEMENS_SymphonyTim_37743_T2-TSE,13,149,0.7674505871505057,11.707364468333544,0.7670428768162971,15.67743144790987,23|179|180,D:\Running_Place\PostGraduateProjects\Experiments\PostGraduate\beckbones\BatchSize4\PureCE\shot3\Seed0

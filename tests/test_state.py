@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import utils
 from utils import load_config
 
 
@@ -29,3 +30,16 @@ def test_unknown_method_config_key_rejected(tmp_path):
     path.write_text(text, encoding="utf-8")
     with pytest.raises(ValueError, match="Unknown configuration"):
         load_config(path)
+
+
+def test_set_seed_uses_warn_only_determinism(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        utils.torch,
+        "use_deterministic_algorithms",
+        lambda mode, *, warn_only=False: calls.append((mode, warn_only)),
+    )
+
+    utils.set_seed(2022, deterministic=True)
+
+    assert calls == [(True, True)]

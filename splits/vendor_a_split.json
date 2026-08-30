@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "source_vendor": "A",
+  "protocol_file": "../data/splits/mms_vendor_a_to_bcd_tta.json",
+  "train_selector": "source.train.patient_ids",
+  "validation_selector": "source.val.patient_ids"
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "source_vendor": "A",
+  "target_vendors": ["B", "C", "D"],
+  "protocol_file": "../data/splits/mms_vendor_a_to_bcd_tta.json",
+  "patient_selector": "targets.{vendor}.patient_ids",
+  "phase_order": ["ED", "ES"],
+  "within_volume_order": "z_index_ascending",
+  "shuffle": false
+}

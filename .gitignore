@@ -1,10 +1,15 @@
 # Local MMS normalized image and mask arrays (dataset; do not upload)
 /data/processed/
 
+# Generated experiment artifacts
+/checkpoints/
+/results/
+
 # Local tooling and generated caches
 /.agents/
 /.codex/
 /.repo.git/
 **/__pycache__/
+.pytest_cache/
 *.py[cod]
 .DS_Store

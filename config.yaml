@@ -1,0 +1,176 @@
+experiment:
+  source_seeds: [2022, 2023, 2024, 2025, 2026]
+  harness_seed: 3101
+  target_vendors: [B, C, D]
+
+data:
+  root: data
+  protocol_file: data/splits/mms_vendor_a_to_bcd_tta.json
+  source_split_file: splits/vendor_a_split.json
+  stream_file: splits/target_streams.json
+  patients_manifest: data/manifests/patients.csv
+  volumes_manifest: data/manifests/volumes.csv
+  slices_manifest: data/manifests/slices.csv
+  source_vendor: A
+  image_size: [256, 256]
+  num_workers: 0
+
+model:
+  name: resunet34
+  pretrained_encoder: true
+  in_channels: 1
+  num_classes: 4
+  encoder_norm: batch_norm
+  decoder_norm: batch_norm
+
+source:
+  batch_size: 8
+  epochs: 200
+  optimizer: adamw
+  encoder_lr: 0.0001
+  decoder_lr: 0.0003
+  weight_decay: 0.0001
+  warmup_epochs: 5
+  scheduler: cosine
+  min_lr: 0.000001
+  early_stopping_patience: 30
+  dice_epsilon: 0.000001
+  checkpoint_dir: checkpoints
+  smoke:
+    batch_size: 2
+    epochs: 1
+    max_train_batches: 2
+    max_val_volumes: 1
+
+evaluation:
+  grid: processed_256
+  metrics: [dice, hd95_px]
+  classes: [1, 2, 3]
+  class_names: {1: rv, 2: myo, 3: lv}
+  absent_class: finite_diagonal_penalty
+  bootstrap_resamples: 10000
+  bootstrap_seed: 42
+
+tta:
+  batch_size: 4
+  timing: adapt_then_predict
+  reset: vendor
+  deterministic: true
+  precision: fp32
+  results_dir: results
+
+methods:
+  source:
+    profile_verified: true
+    profile_kind: official
+    method_seed: 4101
+  tent:
+    profile_verified: true
+    profile_kind: official_segmentation
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine
+    bn_policy: batch_no_running
+    optimizer: sgd
+    lr: 0.00025
+    momentum: 0.9
+    weight_decay: 0.0
+  eata:
+    profile_verified: true
+    profile_kind: seg_mod
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine
+    bn_policy: batch_no_running
+    optimizer: sgd
+    lr: 0.00025
+    momentum: 0.9
+    weight_decay: 0.0
+    entropy_margin_factor: 0.4
+    redundancy_margin: 0.05
+    probability_momentum: 0.9
+    descriptor: spatial_mean_class_probability
+    fisher_path: null
+    fisher_samples: 2000
+    fisher_alpha: 2000.0
+  sar:
+    profile_verified: true
+    profile_kind: official_bn_benchmark
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine_except_encoder_layer4
+    bn_policy: batch_no_running
+    optimizer: sgd_sam
+    lr: 0.00003125
+    momentum: 0.9
+    weight_decay: 0.0
+    entropy_margin_factor: 0.4
+    rho: 0.05
+    recovery_ema: 0.9
+    recovery_threshold: 0.2
+  cotta:
+    profile_verified: true
+    profile_kind: official_segmentation
+    method_seed: 4101
+    steps: 1
+    update_scope: all
+    bn_policy: batch_no_running
+    optimizer: sgd
+    lr: 0.00025
+    head_lr_multiplier: 10.0
+    momentum: 0.9
+    weight_decay: 0.0005
+    teacher_momentum: 0.999
+    confidence_gate: 0.9
+    restore_probability: 0.01
+    augmentation_scales: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75]
+    horizontal_flip_probability: 0.5
+  rotta:
+    profile_verified: true
+    profile_kind: seg_mod
+    method_seed: 4101
+    steps: 1
+    update_scope: rbn_affine
+    optimizer: adam
+    lr: 0.001
+    beta: 0.9
+    weight_decay: 0.0
+    teacher_nu: 0.001
+    rbn_alpha: 0.05
+    memory_capacity: 64
+    update_frequency: 64
+    memory_category_key: dominant_foreground_or_empty
+    lambda_timeliness: 1.0
+    lambda_uncertainty: 1.0
+  roid:
+    profile_verified: true
+    profile_kind: seg_mod
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine
+    bn_policy: batch_no_running
+    optimizer: sgd
+    lr: 0.00025
+    momentum: 0.9
+    weight_decay: 0.0
+    probability_momentum: 0.9
+    temperature: 0.3333333333333333
+    source_weight_momentum: 0.99
+    consistency: true
+    prior_correction: false
+  deyo:
+    profile_verified: true
+    profile_kind: seg_mod
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine_except_encoder_layer4
+    bn_policy: batch_no_running
+    optimizer: sgd
+    lr: 0.00003125
+    momentum: 0.9
+    weight_decay: 0.0
+    entropy_margin_factor: 0.5
+    entropy_weight_margin_factor: 0.4
+    plpd_threshold: 0.2
+    patch_grid: 4
+    foreground_only: true

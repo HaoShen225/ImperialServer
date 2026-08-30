@@ -1,2 +1,0 @@
-domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
-vendor_A_Siemens,2,MeanTeacher_Patient3_Seed2_teacher_SPEGC-online-phase1,95,95,0.009090424536264312,0.008684780856925478,0.02200639455277357,0.01326053331532112,449.59030375159347,111.73674822629975,136.44205252148623,232.58970149979314

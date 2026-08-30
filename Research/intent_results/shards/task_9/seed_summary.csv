@@ -1,2 +1,0 @@
-domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
-vendor_B_Philips,2,MeanTeacher_Patient1_Seed2_teacher_InTEnt,125,125,0.6736214268519097,0.713222027167499,0.7949949332047103,0.7272794624080396,45.9262506595834,6.529503380703178,7.2476041766852015,19.90111940565726

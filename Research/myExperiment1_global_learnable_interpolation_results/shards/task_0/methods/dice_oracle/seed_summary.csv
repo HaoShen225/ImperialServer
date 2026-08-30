@@ -1,2 +1,0 @@
-domain,seed,backbone_id,n_items,n_patients,dice_rv,dice_myo,dice_lv,dice_mean,hd95_rv,hd95_myo,hd95_lv,hd95_mean
-vendor_A_Siemens,0,MeanTeacher_Patient1_Seed0_GlobalGridOracle-Dice,95,95,0.26147528377230395,0.537803028079902,0.702855432529219,0.5007112481271417,115.88285092174173,45.52347091820551,18.317566658329305,59.90796283275885

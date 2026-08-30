@@ -1,0 +1,76 @@
+{
+  "source": "D:\\Running_Place\\PostGraduateProjects\\dataset\\Cardiac\\MMS",
+  "output": "D:\\Running_Place\\PostGraduateProjects\\dataset\\Cardiac\\MMS_normalized",
+  "target_spacing_xy": 1.5,
+  "image_size": 256,
+  "labels": {
+    "raw_mms": {
+      "0": "background",
+      "1": "lv",
+      "2": "myo",
+      "3": "rv"
+    },
+    "output_acdc_compatible": {
+      "0": "background",
+      "1": "rv",
+      "2": "myo",
+      "3": "lv"
+    },
+    "raw_mms_to_output": {
+      "0": 0,
+      "1": 3,
+      "2": 2,
+      "3": 1
+    }
+  },
+  "patients": {
+    "total": 345,
+    "by_vendor": {
+      "A": 95,
+      "B": 125,
+      "C": 75,
+      "D": 50
+    },
+    "by_part": {
+      "Testing": 136,
+      "Training/Labeled": 150,
+      "Training/Unlabeled": 25,
+      "Validation": 34
+    }
+  },
+  "volumes": {
+    "total": 690
+  },
+  "slices": {
+    "total": 7908,
+    "foreground": 5289,
+    "empty": 2619
+  },
+  "by_domain": {
+    "vendor_A_Siemens": {
+      "patients": 95,
+      "volumes": 190,
+      "slices": 2212,
+      "foreground_slices": 1599
+    },
+    "vendor_B_Philips": {
+      "patients": 125,
+      "volumes": 250,
+      "slices": 2642,
+      "foreground_slices": 2049
+    },
+    "vendor_C_GE": {
+      "patients": 75,
+      "volumes": 150,
+      "slices": 1788,
+      "foreground_slices": 806
+    },
+    "vendor_D_Canon": {
+      "patients": 50,
+      "volumes": 100,
+      "slices": 1266,
+      "foreground_slices": 835
+    }
+  },
+  "failures": []
+}

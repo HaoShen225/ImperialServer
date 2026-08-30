@@ -1,0 +1,10 @@
+# Local MMS normalized image and mask arrays (dataset; do not upload)
+/data/processed/
+
+# Local tooling and generated caches
+/.agents/
+/.codex/
+/.repo.git/
+**/__pycache__/
+*.py[cod]
+.DS_Store

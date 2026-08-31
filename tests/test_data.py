@@ -10,12 +10,16 @@ def test_locked_source_split_and_target_disjoint(config):
     assert len(validation) == 15
     assert train.isdisjoint(validation)
     targets = {}
-    for vendor, expected in (("B", 125), ("C", 75), ("D", 50)):
+    for vendor, expected in (("B", 125), ("C", 50), ("D", 50)):
         stream = build_target_stream(vendor, config)
         targets[vendor] = {volume["patient_id"] for volume in stream.volumes}
         assert len(targets[vendor]) == expected
         assert len(stream) == expected * 2
         assert all([int(row["z_index"]) for row in volume["slices"]] == sorted(int(row["z_index"]) for row in volume["slices"]) for volume in stream.volumes)
+        if vendor == "C":
+            assert {
+                row["original_part"] for volume in stream.volumes for row in volume["slices"]
+            } == {"Testing", "Validation"}
     all_source = train | validation
     assert all(all_source.isdisjoint(value) for value in targets.values())
     assert targets["B"].isdisjoint(targets["C"])

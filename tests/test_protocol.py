@@ -4,7 +4,7 @@ import inspect
 
 import torch
 
-from run_tta import run_volume
+from run_tta import _validate_evaluation_target, run_volume
 from tta_methods import build_method
 
 
@@ -36,3 +36,9 @@ def test_timing_modes_produce_distinct_first_batch(config, tiny_model, images):
     logits_before, _ = first.process_batch(images)
     logits_after, _ = second.process_batch(images)
     assert not torch.equal(logits_before, logits_after)
+
+
+def test_empty_evaluation_target_is_rejected():
+    target = torch.zeros((4, 16, 16), dtype=torch.int64)
+    with __import__("pytest").raises(ValueError, match="C/PATIENT/ED"):
+        _validate_evaluation_target(target, [1, 2, 3], "C", "PATIENT", "ED")

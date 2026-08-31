@@ -56,6 +56,20 @@ def _method_config(cfg: dict[str, Any], method_name: str, source_seed: int) -> d
     return method_cfg
 
 
+def _validate_evaluation_target(
+    target: torch.Tensor,
+    classes: list[int],
+    vendor: str,
+    patient_id: str,
+    phase: str,
+) -> None:
+    if not any(bool(torch.any(target == class_id)) for class_id in classes):
+        raise ValueError(
+            "Evaluation target has no configured foreground labels: "
+            f"{vendor}/{patient_id}/{phase}"
+        )
+
+
 def run_experiment(
     cfg: dict[str, Any],
     method_name: str,
@@ -90,10 +104,14 @@ def run_experiment(
                 method, volume["image"], int(cfg["tta"]["batch_size"]), device
             )
             target = dataset.load_mask(volume)
+            classes = [int(value) for value in cfg["evaluation"]["classes"]]
+            _validate_evaluation_target(
+                target, classes, vendor, volume["patient_id"], volume["phase"]
+            )
             class_names = {int(key): value for key, value in cfg["evaluation"]["class_names"].items()}
             scores = evaluate_volume(
                 prediction.numpy(), target.numpy(),
-                classes=[int(value) for value in cfg["evaluation"]["classes"]],
+                classes=classes,
                 class_names=class_names,
             )
             records.append({

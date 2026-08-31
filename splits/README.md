@@ -24,13 +24,16 @@
 3. 每名患者固定先 ED、后 ES；
 4. 每个体积内部按 `z_index` 升序；
 5. 不 shuffle，最后一个不足四张的 arrival batch 仍保留。
+6. `Training/Unlabeled` 被排除在正式到达流之外，不参与适配或评分。
+
+当前协议版本为 v3。Vendor C 只包含 Validation 10 名和 Testing 40 名患者，共 50 名患者；原始数据中的 25 名 `Training/Unlabeled` 患者仍保留在 manifest，但不属于测评序列。
 
 实际完整患者列表保存在 `data/splits/mms_vendor_a_to_bcd_tta.json`。运行器会把完整协议文件和 `target_streams.json` 的 SHA-256 写入实验结果；`vendor_a_split.json` 作为受 Git 版本控制的源域 selector，指向同一个协议文件。
 
 ## 修改约束
 
 - 不允许使用 Vendor B/C/D 标签调整患者顺序、方法超参数或 SEG-MOD 设计。
-- 修改患者列表或顺序会改变实验协议，必须提升 JSON 的 `version` 并重新生成所有可比较结果。
+- 修改患者列表、排除规则或顺序会改变实验协议，必须提升 JSON 的 `version` 并重新生成所有可比较结果。只有完全无更新的 source-only 记录可以使用 `reaggregate_source_results.py` 离线过滤，并且必须记录旧协议哈希。
 - `patient`、`vendor`、`never` 是模型状态的 reset policy，不会改变这里定义的数据顺序。
 - 正式独立域比较使用 A→B、A→C、A→D；continual 设置使用 A→B→C→D 且跨 vendor 不重置。
 

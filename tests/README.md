@@ -6,10 +6,11 @@
 
 | 文件 | 主要覆盖内容 |
 |---|---|
-| `test_data.py` | 患者划分无重叠、B/C/D 目标流、切片顺序、尾 batch、mask 延迟加载 |
+| `test_data.py` | 患者划分无重叠、B/C/D 目标流、C 无标注排除、切片顺序、尾 batch、mask 延迟加载 |
 | `test_metrics.py` | 3D Dice、`HD95_px`、缺失类别有限对角线惩罚、患者级 bootstrap |
 | `test_model.py` | ResUNet-34 输出形状、decoder BN、CE+Dice 和 AdamW 参数组 |
-| `test_protocol.py` | 无标签 `run_volume` 边界、mask permutation immunity、两种 timing |
+| `test_protocol.py` | 无标签 `run_volume` 边界、空标签防护、mask permutation immunity、两种 timing |
+| `test_reaggregate.py` | source-only 离线过滤、派生哈希记录、拒绝自适应结果 |
 | `test_methods.py` | 八方法构造/更新、BN policy、trainable scope、随机 reset replay、RoTTA RBN |
 | `test_state.py` | 方法导入隔离和未知配置键立即报错 |
 

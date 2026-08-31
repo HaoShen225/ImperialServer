@@ -1,6 +1,6 @@
 # MMS 数据目录说明
 
-本目录保存工作台使用的 M&Ms 数据索引、预处理数组和质量检查结果。实验协议固定为：Vendor A（Siemens）是源域，Vendor B/C/D 是目标域。
+本目录保存工作台使用的 M&Ms 数据索引、预处理数组和质量检查结果。实验协议固定为：Vendor A（Siemens）是源域，Vendor B/C/D 是目标域。Vendor C 的 25 名 `Training/Unlabeled` 患者不进入正式目标流，因此不会参与推理适配或指标计算。
 
 ## 目录结构
 
@@ -38,6 +38,8 @@ data/
 - `volumes.csv`：原始/重采样尺寸、spacing、切片数和前景统计。
 - `slices.csv`：运行时的主要索引。目标流按 `patient_id → ED/ES → z_index` 读取。
 - `qc_report.json`：345 名患者、690 个 ED/ES 体积及各 vendor 数量的预处理汇总。
+
+完整数据清单仍保留所有 345 名患者；正式 C 域测评只使用 Validation 10 名和 Testing 40 名患者，共 50 名患者、100 个 ED/ES 体积。
 
 ## 标签隔离
 

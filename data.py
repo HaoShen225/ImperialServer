@@ -127,21 +127,40 @@ def build_target_stream(vendor: str, cfg: dict[str, Any]) -> MMSTargetVolumeData
     if vendor not in stream_cfg["target_vendors"]:
         raise ValueError(f"Vendor {vendor!r} is not in the authoritative target stream")
     protocol = load_protocol(cfg)
-    patients = protocol["targets"][vendor]["patient_ids"]
+    target_cfg = protocol["targets"][vendor]
+    patients = target_cfg["patient_ids"]
+    excluded_parts = set(stream_cfg.get("excluded_original_parts", []))
     index = _volume_index(cfg)
     volumes: list[dict[str, Any]] = []
     for patient_id in patients:
+        patient_volumes: list[dict[str, Any]] = []
+        original_parts: set[str] = set()
         for phase in stream_cfg["phase_order"]:
             slices = index.get((vendor, patient_id, phase))
             if not slices:
                 raise ValueError(f"Missing target volume {vendor}/{patient_id}/{phase}")
-            volumes.append({
+            phase_parts = {row["original_part"] for row in slices}
+            if len(phase_parts) != 1:
+                raise ValueError(f"Mixed original parts in target volume {vendor}/{patient_id}/{phase}")
+            original_parts.update(phase_parts)
+            patient_volumes.append({
                 "volume_id": f"{patient_id}_{phase}",
                 "patient_id": patient_id,
                 "phase": phase,
                 "vendor": vendor,
                 "slices": slices,
             })
+        if original_parts & excluded_parts:
+            continue
+        if len(original_parts) != 1:
+            raise ValueError(f"Mixed original parts across target patient {vendor}/{patient_id}")
+        volumes.extend(patient_volumes)
+    patient_count = len({volume["patient_id"] for volume in volumes})
+    expected_count = int(target_cfg["counts"]["patients"])
+    if patient_count != expected_count:
+        raise ValueError(
+            f"Target stream count mismatch for vendor {vendor}: expected {expected_count}, got {patient_count}"
+        )
     return MMSTargetVolumeDataset(volumes, cfg["data"]["root"])
 
 

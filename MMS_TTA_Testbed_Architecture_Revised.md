@@ -131,6 +131,9 @@ This avoids parameter-aliasing problems and correctly handles wrappers such as S
 - vendor order;
 - patient order;
 - phase order.
+- excluded official data parts.
+
+Protocol v3 excludes `Training/Unlabeled` from the complete arrival stream. Vendor C therefore contains only the 10 validation and 40 testing patients; the excluded 25 patients cannot alter continual adaptation state and are never scored.
 
 The file hash is written into every result record.
 
@@ -1262,4 +1265,3 @@ Begin with an audit of the current repository against this specification. Return
 
 Avoid factories beyond the existing dictionary registry, dependency injection, generic state managers, callbacks, auto-discovery, and speculative helper files.
 ```
-

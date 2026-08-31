@@ -543,9 +543,12 @@ class AdaptationResult:
     n_selected: int = 0
     updated: bool = False
     extras: dict[str, float] = field(default_factory=dict)
+    probe_payload: dict | None = field(default=None, repr=False)
 ```
 
 `extras` is logged opaquely by the harness. The harness never branches on a method-specific diagnostic.
+
+`probe_payload` is an ephemeral, non-serialized method diagnostic. The harness may compare it with labels only after adaptation and prediction have completed; labels never cross the `run_volume(method, images, batch_size, device)` boundary and probe calculations cannot feed back into method state.
 
 Each method documents whether `n_selected` counts slices or pixels.
 

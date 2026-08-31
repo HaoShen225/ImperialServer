@@ -34,8 +34,117 @@ def run_volume(
         record = info.to_dict()
         record["arrival_batch_size"] = int(batch.shape[0])
         record["predicted_foreground_area"] = predicted_foreground_area(logits)
+        if info.probe_payload is not None:
+            record["_probe_payload"] = {
+                stage: {
+                    key: value.detach().cpu()
+                    for key, value in payload.items()
+                }
+                for stage, payload in info.probe_payload.items()
+            }
         records.append(record)
     return torch.cat(predictions), records
+
+
+def _probe_stage_counts(
+    payload: dict[str, torch.Tensor], target: torch.Tensor
+) -> dict[str, int | float | None]:
+    selected = payload["selected"].to(dtype=torch.bool, device="cpu")
+    labels = payload["labels"].to(device="cpu")
+    if selected.ndim != 1 or selected.shape[0] != target.shape[0]:
+        raise ValueError("Entropy probe selection shape does not match the target batch")
+    if labels.shape != target.shape:
+        raise ValueError("Entropy probe pseudo-label shape does not match the target batch")
+    selected_target = target[selected]
+    selected_labels = labels[selected]
+    selected_pixels = int(selected_target.numel())
+    correct_pixels = int((selected_labels == selected_target).sum()) if selected_pixels else 0
+    foreground = selected_target > 0
+    foreground_pixels = int(foreground.sum()) if selected_pixels else 0
+    correct_foreground_pixels = (
+        int(((selected_labels == selected_target) & foreground).sum())
+        if foreground_pixels
+        else 0
+    )
+    seen_slices = int(target.shape[0])
+    selected_slices = int(selected.sum())
+    return {
+        "seen_slices": seen_slices,
+        "selected_slices": selected_slices,
+        "selection_coverage": selected_slices / seen_slices if seen_slices else None,
+        "selected_pixels": selected_pixels,
+        "correct_pixels": correct_pixels,
+        "pixel_accuracy": correct_pixels / selected_pixels if selected_pixels else None,
+        "gt_foreground_pixels": foreground_pixels,
+        "correct_gt_foreground_pixels": correct_foreground_pixels,
+        "foreground_pixel_accuracy": (
+            correct_foreground_pixels / foreground_pixels if foreground_pixels else None
+        ),
+    }
+
+
+def _aggregate_probe_counts(
+    probes: list[dict[str, dict[str, int | float | None]]]
+) -> dict[str, dict[str, int | float | None]]:
+    stages = ("first_filter", "second_filter")
+    aggregate: dict[str, dict[str, int | float | None]] = {}
+    for stage in stages:
+        counts = {
+            key: sum(int(probe[stage][key]) for probe in probes)
+            for key in (
+                "seen_slices",
+                "selected_slices",
+                "selected_pixels",
+                "correct_pixels",
+                "gt_foreground_pixels",
+                "correct_gt_foreground_pixels",
+            )
+        }
+        aggregate[stage] = {
+            **counts,
+            "selection_coverage": (
+                counts["selected_slices"] / counts["seen_slices"]
+                if counts["seen_slices"]
+                else None
+            ),
+            "pixel_accuracy": (
+                counts["correct_pixels"] / counts["selected_pixels"]
+                if counts["selected_pixels"]
+                else None
+            ),
+            "foreground_pixel_accuracy": (
+                counts["correct_gt_foreground_pixels"] / counts["gt_foreground_pixels"]
+                if counts["gt_foreground_pixels"]
+                else None
+            ),
+        }
+    return aggregate
+
+
+def attach_entropy_label_probe(
+    adaptation_records: list[dict[str, Any]], target: torch.Tensor
+) -> dict[str, dict[str, int | float | None]] | None:
+    """Attach label-aware diagnostics after adaptation without leaking labels into TTA."""
+    offset = 0
+    probes = []
+    for record in adaptation_records:
+        batch_size = int(record["arrival_batch_size"])
+        batch_target = target[offset : offset + batch_size].cpu()
+        offset += batch_size
+        payload = record.pop("_probe_payload", None)
+        if payload is None:
+            continue
+        probe = {
+            stage: _probe_stage_counts(stage_payload, batch_target)
+            for stage, stage_payload in payload.items()
+        }
+        if probe["second_filter"]["selected_slices"] > probe["first_filter"]["selected_slices"]:
+            raise RuntimeError("SAR second entropy filter is not a subset of the first filter")
+        record["entropy_label_probe"] = probe
+        probes.append(probe)
+    if offset != int(target.shape[0]):
+        raise ValueError("Adaptation batches do not cover the complete target volume")
+    return _aggregate_probe_counts(probes) if probes else None
 
 
 def _write_jsonl(records: list[dict[str, Any]], path: Path) -> None:
@@ -104,6 +213,7 @@ def run_experiment(
                 method, volume["image"], int(cfg["tta"]["batch_size"]), device
             )
             target = dataset.load_mask(volume)
+            entropy_label_probe = attach_entropy_label_probe(adaptation_records, target)
             classes = [int(value) for value in cfg["evaluation"]["classes"]]
             _validate_evaluation_target(
                 target, classes, vendor, volume["patient_id"], volume["phase"]
@@ -114,7 +224,7 @@ def run_experiment(
                 classes=classes,
                 class_names=class_names,
             )
-            records.append({
+            record = {
                 "method": method_name,
                 "profile_verified": bool(method_cfg["profile_verified"]),
                 "profile_kind": method_cfg["profile_kind"],
@@ -134,7 +244,10 @@ def run_experiment(
                 "protocol_sha256": protocol_hash,
                 "target_stream_sha256": stream_hash,
                 "trainable_parameters": method.trainable_parameter_names(),
-            })
+            }
+            if entropy_label_probe is not None:
+                record["entropy_label_probe"] = entropy_label_probe
+            records.append(record)
         _write_jsonl(records, result_root / f"vendor_{vendor}.jsonl")
         summary = aggregate_results(
             records,

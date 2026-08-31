@@ -14,6 +14,9 @@ class SAR(BaseTTA):
     def setup(self) -> None:
         configure_bn_for_batch_stats(self.model)
         self.parameters, self.parameter_names = collect_bn_affine(self.model, ("encoder.layer4",))
+        self.model.requires_grad_(False)
+        for parameter in self.parameters:
+            parameter.requires_grad_(True)
         self.optimizer = self._build_optimizer()
         self.ema_loss: float | None = None
         self.recovery_count = 0
@@ -44,20 +47,42 @@ class SAR(BaseTTA):
         first_logits = self.model(images)["logits"]
         first_entropy = slice_entropy(first_logits)
         first_selected = first_entropy < margin
+        first_labels = first_logits.detach().argmax(dim=1)
         if not first_selected.any():
-            return AdaptationResult(n_seen=int(images.shape[0]), n_selected=0, updated=False)
+            return AdaptationResult(
+                n_seen=int(images.shape[0]),
+                n_selected=0,
+                updated=False,
+                probe_payload=self._probe_payload(
+                    first_selected,
+                    first_labels,
+                    torch.zeros_like(first_selected),
+                    torch.zeros_like(first_labels),
+                ),
+            )
         first_loss = first_entropy[first_selected].mean()
         first_loss.backward()
         self.optimizer.first_step()
         second_logits = self.model(images)["logits"]
         second_entropy = slice_entropy(second_logits)
-        second_selected = second_entropy < margin
+        # The official SAR second filter is applied only to samples retained
+        # by the first filter, so the SGD gradient subset is their intersection.
+        second_selected = first_selected & (second_entropy < margin)
+        second_labels = second_logits.detach().argmax(dim=1)
         if not second_selected.any():
             for parameter, perturbation in self.optimizer.perturbations.items():
                 parameter.data.sub_(perturbation)
             self.optimizer.perturbations = {}
             self.optimizer.zero_grad()
-            return AdaptationResult(loss=float(first_loss.detach()), n_seen=int(images.shape[0]), n_selected=0, updated=False)
+            return AdaptationResult(
+                loss=float(first_loss.detach()),
+                n_seen=int(images.shape[0]),
+                n_selected=0,
+                updated=False,
+                probe_payload=self._probe_payload(
+                    first_selected, first_labels, second_selected, second_labels
+                ),
+            )
         second_loss = second_entropy[second_selected].mean()
         second_loss.backward()
         self.optimizer.second_step()
@@ -75,4 +100,25 @@ class SAR(BaseTTA):
             n_selected=int(second_selected.sum()),
             updated=True,
             extras={"ema_loss": float(self.ema_loss), "recovered": float(recovered), "recovery_count": float(self.recovery_count)},
+            probe_payload=self._probe_payload(
+                first_selected, first_labels, second_selected, second_labels
+            ),
         )
+
+    @staticmethod
+    def _probe_payload(
+        first_selected: torch.Tensor,
+        first_labels: torch.Tensor,
+        second_selected: torch.Tensor,
+        second_labels: torch.Tensor,
+    ) -> dict[str, dict[str, torch.Tensor]]:
+        return {
+            "first_filter": {
+                "selected": first_selected.detach(),
+                "labels": first_labels.detach(),
+            },
+            "second_filter": {
+                "selected": second_selected.detach(),
+                "labels": second_labels.detach(),
+            },
+        }

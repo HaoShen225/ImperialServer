@@ -95,13 +95,13 @@ methods:
     fisher_alpha: 2000.0
   sar:
     profile_verified: true
-    profile_kind: official_bn_benchmark
+    profile_kind: official_mechanism_custom_lr
     method_seed: 4101
     steps: 1
     update_scope: bn_affine_except_encoder_layer4
     bn_policy: batch_no_running
     optimizer: sgd_sam
-    lr: 0.00003125
+    lr: 0.001
     momentum: 0.9
     weight_decay: 0.0
     entropy_margin_factor: 0.4

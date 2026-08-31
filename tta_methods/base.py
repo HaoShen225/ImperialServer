@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 import time
 from typing import Any
 
@@ -19,9 +19,18 @@ class AdaptationResult:
     n_selected: int = 0
     updated: bool = False
     extras: dict[str, float] = field(default_factory=dict)
+    probe_payload: dict[str, dict[str, torch.Tensor]] | None = field(default=None, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        # Probe tensors are ephemeral evaluation diagnostics. They are handled
+        # after adaptation and must never enter the serialized method record.
+        return {
+            "loss": self.loss,
+            "n_seen": self.n_seen,
+            "n_selected": self.n_selected,
+            "updated": self.updated,
+            "extras": dict(self.extras),
+        }
 
 
 class BaseTTA(ABC):

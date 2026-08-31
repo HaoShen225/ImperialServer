@@ -1,9 +1,8 @@
 # Local MMS normalized image and mask arrays (dataset; do not upload)
 /data/processed/
 
-# Generated experiment artifacts
+# Generated model artifacts
 /checkpoints/
-/results/
 
 # Local tooling and generated caches
 /.agents/

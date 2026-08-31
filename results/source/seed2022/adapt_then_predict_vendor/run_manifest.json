@@ -1,0 +1,423 @@
+{
+  "derivation": {
+    "inference_reused": true,
+    "mode": "offline_source_only_protocol_filter",
+    "record_counts": {
+      "B": {
+        "input_records": 250,
+        "n_patients": 125,
+        "output_records": 250,
+        "removed_records": 0
+      },
+      "C": {
+        "input_records": 150,
+        "n_patients": 50,
+        "output_records": 100,
+        "removed_records": 50
+      },
+      "D": {
+        "input_records": 100,
+        "n_patients": 50,
+        "output_records": 100,
+        "removed_records": 0
+      }
+    },
+    "source_protocol_sha256": "c8922a0c6f8ddff67bc7a7a10d4cb7de91fc87561616f5b1798ec9d5708b7332",
+    "source_target_stream_sha256": "f13f86b6eb7909772d6a35f81eaaaea8bf7310fee6deccfa905e643c797d69f0"
+  },
+  "fisher_sha256": null,
+  "method": "source",
+  "protocol_sha256": "e9a16a65253161c9dfab28d6e03917f7900aea4e7867e5f2857043a7c570aac7",
+  "resolved_config": {
+    "data": {
+      "image_size": [
+        256,
+        256
+      ],
+      "num_workers": 0,
+      "patients_manifest": "data/manifests/patients.csv",
+      "protocol_file": "data/splits/mms_vendor_a_to_bcd_tta.json",
+      "root": "data",
+      "slices_manifest": "data/manifests/slices.csv",
+      "source_split_file": "splits/vendor_a_split.json",
+      "source_vendor": "A",
+      "stream_file": "splits/target_streams.json",
+      "volumes_manifest": "data/manifests/volumes.csv"
+    },
+    "evaluation": {
+      "absent_class": "finite_diagonal_penalty",
+      "bootstrap_resamples": 10000,
+      "bootstrap_seed": 42,
+      "class_names": {
+        "1": "rv",
+        "2": "myo",
+        "3": "lv"
+      },
+      "classes": [
+        1,
+        2,
+        3
+      ],
+      "grid": "processed_256",
+      "metrics": [
+        "dice",
+        "hd95_px"
+      ]
+    },
+    "experiment": {
+      "harness_seed": 3101,
+      "source_seeds": [
+        2022,
+        2023,
+        2024,
+        2025,
+        2026
+      ],
+      "target_vendors": [
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "methods": {
+      "cotta": {
+        "augmentation_scales": [
+          0.5,
+          0.75,
+          1.0,
+          1.25,
+          1.5,
+          1.75
+        ],
+        "bn_policy": "batch_no_running",
+        "confidence_gate": 0.9,
+        "head_lr_multiplier": 10.0,
+        "horizontal_flip_probability": 0.5,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "restore_probability": 0.01,
+        "steps": 1,
+        "teacher_momentum": 0.999,
+        "update_scope": "all",
+        "weight_decay": 0.0005
+      },
+      "deyo": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.5,
+        "entropy_weight_margin_factor": 0.4,
+        "foreground_only": true,
+        "lr": 3.125e-05,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "patch_grid": 4,
+        "plpd_threshold": 0.2,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "eata": {
+        "bn_policy": "batch_no_running",
+        "descriptor": "spatial_mean_class_probability",
+        "entropy_margin_factor": 0.4,
+        "fisher_alpha": 2000.0,
+        "fisher_path": null,
+        "fisher_samples": 2000,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "redundancy_margin": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "roid": {
+        "bn_policy": "batch_no_running",
+        "consistency": true,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "prior_correction": false,
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "source_weight_momentum": 0.99,
+        "steps": 1,
+        "temperature": 0.3333333333333333,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "rotta": {
+        "beta": 0.9,
+        "lambda_timeliness": 1.0,
+        "lambda_uncertainty": 1.0,
+        "lr": 0.001,
+        "memory_capacity": 64,
+        "memory_category_key": "dominant_foreground_or_empty",
+        "method_seed": 4101,
+        "optimizer": "adam",
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "rbn_alpha": 0.05,
+        "steps": 1,
+        "teacher_nu": 0.001,
+        "update_frequency": 64,
+        "update_scope": "rbn_affine",
+        "weight_decay": 0.0
+      },
+      "sar": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.4,
+        "lr": 3.125e-05,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd_sam",
+        "profile_kind": "official_bn_benchmark",
+        "profile_verified": true,
+        "recovery_ema": 0.9,
+        "recovery_threshold": 0.2,
+        "rho": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "source": {
+        "method_seed": 4101,
+        "profile_kind": "official",
+        "profile_verified": true
+      },
+      "tent": {
+        "bn_policy": "batch_no_running",
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      }
+    },
+    "model": {
+      "decoder_norm": "batch_norm",
+      "encoder_norm": "batch_norm",
+      "in_channels": 1,
+      "name": "resunet34",
+      "num_classes": 4,
+      "pretrained_encoder": true
+    },
+    "source": {
+      "batch_size": 8,
+      "checkpoint_dir": "checkpoints",
+      "decoder_lr": 0.0003,
+      "dice_epsilon": 1e-06,
+      "early_stopping_patience": 30,
+      "encoder_lr": 0.0001,
+      "epochs": 200,
+      "min_lr": 1e-06,
+      "optimizer": "adamw",
+      "scheduler": "cosine",
+      "smoke": {
+        "batch_size": 2,
+        "epochs": 1,
+        "max_train_batches": 2,
+        "max_val_volumes": 1
+      },
+      "warmup_epochs": 5,
+      "weight_decay": 0.0001
+    },
+    "tta": {
+      "batch_size": 4,
+      "deterministic": true,
+      "precision": "fp32",
+      "reset": "vendor",
+      "results_dir": "results",
+      "timing": "adapt_then_predict"
+    }
+  },
+  "resolved_method_config": {
+    "method_seed": 4101,
+    "profile_kind": "official",
+    "profile_verified": true
+  },
+  "runtime": {
+    "cuda_runtime": "11.8",
+    "device_count": 1,
+    "git_commit": "00cde0a8dcafa5a8b3cd8855c1d766f58a89c9d4",
+    "numpy": "2.4.4",
+    "python": "3.11.15",
+    "torch": "2.7.1+cu118"
+  },
+  "source_checkpoint_sha256": "0ed0c41e2987ea350c90135dcce068009e06801fc3f122d5a4387887f3a9196e",
+  "source_seed": 2022,
+  "summaries": {
+    "B": {
+      "dice_lv": {
+        "ci95_high": 0.8857864543377778,
+        "ci95_low": 0.8677600774301504,
+        "mean": 0.8768506693856941,
+        "n_patients": 125
+      },
+      "dice_macro": {
+        "ci95_high": 0.8532239908097409,
+        "ci95_low": 0.8407483405479004,
+        "mean": 0.8470111524035294,
+        "n_patients": 125
+      },
+      "dice_myo": {
+        "ci95_high": 0.8089402313148645,
+        "ci95_low": 0.7950093726029283,
+        "mean": 0.8021150841695819,
+        "n_patients": 125
+      },
+      "dice_rv": {
+        "ci95_high": 0.872056991151212,
+        "ci95_low": 0.8513203346536937,
+        "mean": 0.8620677036553124,
+        "n_patients": 125
+      },
+      "hd95_px_lv": {
+        "ci95_high": 19.545559373791626,
+        "ci95_low": 9.548302197404023,
+        "mean": 14.285954750920887,
+        "n_patients": 125
+      },
+      "hd95_px_macro": {
+        "ci95_high": 11.232926850748328,
+        "ci95_low": 5.810661553866586,
+        "mean": 8.35527471212661,
+        "n_patients": 125
+      },
+      "hd95_px_myo": {
+        "ci95_high": 11.677416992533603,
+        "ci95_low": 5.02469766507771,
+        "mean": 8.134884168384797,
+        "n_patients": 125
+      },
+      "hd95_px_rv": {
+        "ci95_high": 4.530087456429492,
+        "ci95_low": 1.4722892884819494,
+        "mean": 2.644985217074146,
+        "n_patients": 125
+      }
+    },
+    "C": {
+      "dice_lv": {
+        "ci95_high": 0.881102383388074,
+        "ci95_low": 0.8075661556322657,
+        "mean": 0.8502493216765502,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.8308796070792246,
+        "ci95_low": 0.7595202718398691,
+        "mean": 0.8005785017475879,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7840568888114209,
+        "ci95_low": 0.7169270002238523,
+        "mean": 0.7554191980737925,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.8390978747960556,
+        "ci95_low": 0.7425982633844228,
+        "mean": 0.7960669854924209,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 14.22617309338636,
+        "ci95_low": 3.360813740624622,
+        "mean": 8.095974317852152,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 10.918232525587692,
+        "ci95_low": 3.32508221789649,
+        "mean": 6.504038949218364,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 8.469944498210971,
+        "ci95_low": 2.398474834744253,
+        "mean": 4.989105772442011,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 12.42994383370062,
+        "ci95_low": 2.104286896425953,
+        "mean": 6.427036757360931,
+        "n_patients": 50
+      }
+    },
+    "D": {
+      "dice_lv": {
+        "ci95_high": 0.8937426295878866,
+        "ci95_low": 0.8631047662932716,
+        "mean": 0.8790843022415086,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.8504472963569842,
+        "ci95_low": 0.8347904013658385,
+        "mean": 0.8427166656851088,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7942824798980885,
+        "ci95_low": 0.7765679550224203,
+        "mean": 0.7855832167747637,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.8769680009948417,
+        "ci95_low": 0.8489128316775955,
+        "mean": 0.8634824780390542,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 29.015556927421844,
+        "ci95_low": 7.345498314334829,
+        "mean": 17.510523922831013,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 15.041240397263348,
+        "ci95_low": 4.62197394511209,
+        "mean": 9.433068554945159,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 6.1571367304067754,
+        "ci95_low": 1.4760814034556016,
+        "mean": 3.0851464349690882,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 15.38902129619463,
+        "ci95_low": 1.6611246987468544,
+        "mean": 7.703535307035375,
+        "n_patients": 50
+      }
+    }
+  },
+  "target_stream_sha256": "dc3045f590d50abd71d1a5c58b7970b6ce9fff0dd2f171210fffa3c91266c550",
+  "vendors": [
+    "B",
+    "C",
+    "D"
+  ]
+}

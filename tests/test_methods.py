@@ -29,6 +29,26 @@ def test_batch_stat_methods_have_no_running_buffers(name, config, tiny_model):
             assert module.running_var is None
 
 
+def test_tent_uses_locked_sgd_profile(config, tiny_model):
+    method = build_method(
+        "tent", deepcopy(tiny_model), method_config(config, "tent"), config["tta"], torch.device("cpu")
+    )
+    assert config["tta"]["batch_size"] == 4
+    assert isinstance(method.optimizer, torch.optim.SGD)
+    assert len(method.optimizer.param_groups) == 1
+    group = method.optimizer.param_groups[0]
+    assert group["lr"] == pytest.approx(1e-3)
+    assert group["momentum"] == pytest.approx(0.9)
+    assert group["weight_decay"] == pytest.approx(0.0)
+    expected = {
+        f"{module_name}.{parameter_name}"
+        for module_name, module in method.model.named_modules()
+        if isinstance(module, nn.BatchNorm2d)
+        for parameter_name in ("weight", "bias")
+    }
+    assert set(method.trainable_parameter_names()) == expected
+
+
 @pytest.mark.parametrize("name", ["cotta", "rotta", "roid", "deyo"])
 def test_stochastic_method_reset_replays_exactly(name, config, tiny_model, images):
     method = build_method(name, deepcopy(tiny_model), method_config(config, name), config["tta"], torch.device("cpu"))

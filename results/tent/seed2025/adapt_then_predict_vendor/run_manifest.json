@@ -1,0 +1,404 @@
+{
+  "fisher_sha256": null,
+  "method": "tent",
+  "protocol_sha256": "e9a16a65253161c9dfab28d6e03917f7900aea4e7867e5f2857043a7c570aac7",
+  "resolved_config": {
+    "data": {
+      "image_size": [
+        256,
+        256
+      ],
+      "num_workers": 0,
+      "patients_manifest": "data/manifests/patients.csv",
+      "protocol_file": "data/splits/mms_vendor_a_to_bcd_tta.json",
+      "root": "data",
+      "slices_manifest": "data/manifests/slices.csv",
+      "source_split_file": "splits/vendor_a_split.json",
+      "source_vendor": "A",
+      "stream_file": "splits/target_streams.json",
+      "volumes_manifest": "data/manifests/volumes.csv"
+    },
+    "evaluation": {
+      "absent_class": "finite_diagonal_penalty",
+      "bootstrap_resamples": 10000,
+      "bootstrap_seed": 42,
+      "class_names": {
+        "1": "rv",
+        "2": "myo",
+        "3": "lv"
+      },
+      "classes": [
+        1,
+        2,
+        3
+      ],
+      "grid": "processed_256",
+      "metrics": [
+        "dice",
+        "hd95_px"
+      ]
+    },
+    "experiment": {
+      "harness_seed": 3101,
+      "source_seeds": [
+        2022,
+        2023,
+        2024,
+        2025,
+        2026
+      ],
+      "target_vendors": [
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "methods": {
+      "cotta": {
+        "augmentation_scales": [
+          0.5,
+          0.75,
+          1.0,
+          1.25,
+          1.5,
+          1.75
+        ],
+        "bn_policy": "batch_no_running",
+        "confidence_gate": 0.9,
+        "head_lr_multiplier": 10.0,
+        "horizontal_flip_probability": 0.5,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "restore_probability": 0.01,
+        "steps": 1,
+        "teacher_momentum": 0.999,
+        "update_scope": "all",
+        "weight_decay": 0.0005
+      },
+      "deyo": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.5,
+        "entropy_weight_margin_factor": 0.4,
+        "foreground_only": true,
+        "lr": 3.125e-05,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "patch_grid": 4,
+        "plpd_threshold": 0.2,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "eata": {
+        "bn_policy": "batch_no_running",
+        "descriptor": "spatial_mean_class_probability",
+        "entropy_margin_factor": 0.4,
+        "fisher_alpha": 2000.0,
+        "fisher_path": null,
+        "fisher_samples": 2000,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "redundancy_margin": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "roid": {
+        "bn_policy": "batch_no_running",
+        "consistency": true,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "prior_correction": false,
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "source_weight_momentum": 0.99,
+        "steps": 1,
+        "temperature": 0.3333333333333333,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "rotta": {
+        "beta": 0.9,
+        "lambda_timeliness": 1.0,
+        "lambda_uncertainty": 1.0,
+        "lr": 0.001,
+        "memory_capacity": 64,
+        "memory_category_key": "dominant_foreground_or_empty",
+        "method_seed": 4101,
+        "optimizer": "adam",
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "rbn_alpha": 0.05,
+        "steps": 1,
+        "teacher_nu": 0.001,
+        "update_frequency": 64,
+        "update_scope": "rbn_affine",
+        "weight_decay": 0.0
+      },
+      "sar": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.4,
+        "lr": 3.125e-05,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd_sam",
+        "profile_kind": "official_bn_benchmark",
+        "profile_verified": true,
+        "recovery_ema": 0.9,
+        "recovery_threshold": 0.2,
+        "rho": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "source": {
+        "method_seed": 4101,
+        "profile_kind": "official",
+        "profile_verified": true
+      },
+      "tent": {
+        "bn_policy": "batch_no_running",
+        "lr": 0.001,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      }
+    },
+    "model": {
+      "decoder_norm": "batch_norm",
+      "encoder_norm": "batch_norm",
+      "in_channels": 1,
+      "name": "resunet34",
+      "num_classes": 4,
+      "pretrained_encoder": true
+    },
+    "source": {
+      "batch_size": 8,
+      "checkpoint_dir": "checkpoints",
+      "decoder_lr": 0.0003,
+      "dice_epsilon": 1e-06,
+      "early_stopping_patience": 30,
+      "encoder_lr": 0.0001,
+      "epochs": 200,
+      "min_lr": 1e-06,
+      "optimizer": "adamw",
+      "scheduler": "cosine",
+      "smoke": {
+        "batch_size": 2,
+        "epochs": 1,
+        "max_train_batches": 2,
+        "max_val_volumes": 1
+      },
+      "warmup_epochs": 5,
+      "weight_decay": 0.0001
+    },
+    "tta": {
+      "batch_size": 4,
+      "deterministic": true,
+      "precision": "fp32",
+      "reset": "vendor",
+      "results_dir": "results",
+      "timing": "adapt_then_predict"
+    }
+  },
+  "resolved_method_config": {
+    "bn_policy": "batch_no_running",
+    "lr": 0.001,
+    "method_seed": 4101,
+    "momentum": 0.9,
+    "optimizer": "sgd",
+    "profile_kind": "official_segmentation",
+    "profile_verified": true,
+    "steps": 1,
+    "update_scope": "bn_affine",
+    "weight_decay": 0.0
+  },
+  "runtime": {
+    "cuda_runtime": "11.8",
+    "device_count": 1,
+    "git_commit": "5cb1acb10e2a59b9425071c2fa7851da394e75cd",
+    "numpy": "2.4.4",
+    "python": "3.11.15",
+    "torch": "2.7.1+cu118"
+  },
+  "source_checkpoint_sha256": "966de9c75157a8629924a1b8de9fb25ce576d4820a39177878e266873bce2221",
+  "source_seed": 2025,
+  "summaries": {
+    "B": {
+      "dice_lv": {
+        "ci95_high": 0.880636440658616,
+        "ci95_low": 0.8600153125796809,
+        "mean": 0.8706155044634268,
+        "n_patients": 125
+      },
+      "dice_macro": {
+        "ci95_high": 0.8480048856363419,
+        "ci95_low": 0.8326720595057742,
+        "mean": 0.8404367147643245,
+        "n_patients": 125
+      },
+      "dice_myo": {
+        "ci95_high": 0.8151834978025871,
+        "ci95_low": 0.7991154453731758,
+        "mean": 0.8073974426987433,
+        "n_patients": 125
+      },
+      "dice_rv": {
+        "ci95_high": 0.8543223192441303,
+        "ci95_low": 0.8318466016294785,
+        "mean": 0.8432971971308031,
+        "n_patients": 125
+      },
+      "hd95_px_lv": {
+        "ci95_high": 30.88451456867948,
+        "ci95_low": 19.058715950419042,
+        "mean": 24.80188466766744,
+        "n_patients": 125
+      },
+      "hd95_px_macro": {
+        "ci95_high": 21.6867769390047,
+        "ci95_low": 13.481735997894607,
+        "mean": 17.436822441361347,
+        "n_patients": 125
+      },
+      "hd95_px_myo": {
+        "ci95_high": 14.409003832329171,
+        "ci95_low": 6.233099876485393,
+        "mean": 10.075528391477581,
+        "n_patients": 125
+      },
+      "hd95_px_rv": {
+        "ci95_high": 23.555300300067476,
+        "ci95_low": 11.730571731978085,
+        "mean": 17.433054264939027,
+        "n_patients": 125
+      }
+    },
+    "C": {
+      "dice_lv": {
+        "ci95_high": 0.8590643190226588,
+        "ci95_low": 0.7995846259714635,
+        "mean": 0.8331313247422788,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.8177866439311264,
+        "ci95_low": 0.7509487000093537,
+        "mean": 0.7890835832096669,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7826968435772763,
+        "ci95_low": 0.7185144280649342,
+        "mean": 0.7546485221919569,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.8221438086559698,
+        "ci95_low": 0.7259642916807237,
+        "mean": 0.779470902694765,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 40.6692925827626,
+        "ci95_low": 20.064909343373117,
+        "mean": 29.90766756654414,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 25.36251160568127,
+        "ci95_low": 12.524241666381492,
+        "mean": 18.710372920315102,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 15.60305618148891,
+        "ci95_low": 5.1569235177243185,
+        "mean": 9.958941801368908,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 26.784530514728623,
+        "ci95_low": 7.469968136928755,
+        "mean": 16.264509393032252,
+        "n_patients": 50
+      }
+    },
+    "D": {
+      "dice_lv": {
+        "ci95_high": 0.8732740864227657,
+        "ci95_low": 0.8300460651766479,
+        "mean": 0.8527216827014084,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.8371616427202659,
+        "ci95_low": 0.8126385702050268,
+        "mean": 0.8256869142751319,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7916778091546663,
+        "ci95_low": 0.7729634938755874,
+        "mean": 0.7824966516360573,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.858274228867509,
+        "ci95_low": 0.8225256162931449,
+        "mean": 0.8418424084879298,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 46.738172316340126,
+        "ci95_low": 22.821140770332093,
+        "mean": 34.282251633204815,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 26.270164397126994,
+        "ci95_low": 12.856529706762457,
+        "mean": 19.201640132473337,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 14.068466058126415,
+        "ci95_low": 3.7311501562717164,
+        "mean": 8.392328537638432,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 25.01843550054433,
+        "ci95_low": 6.965342587430269,
+        "mean": 14.930340226576758,
+        "n_patients": 50
+      }
+    }
+  },
+  "target_stream_sha256": "dc3045f590d50abd71d1a5c58b7970b6ce9fff0dd2f171210fffa3c91266c550",
+  "vendors": [
+    "B",
+    "C",
+    "D"
+  ]
+}

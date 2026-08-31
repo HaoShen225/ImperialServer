@@ -29,6 +29,8 @@ predict(images)         # 返回 logits，不修改适配状态
 | RoID | BN affine、soft-likelihood-ratio、certainty/diversity weighting 和源权重融合 |
 | DeYO | BN affine、patch shuffle、前景像素 entropy/PLPD 过滤 |
 
+正式 TENT profile 固定为：全部 BN affine、普通像素熵、每个 arrival batch 更新一步、`SGD(lr=1e-3, momentum=0.9, weight_decay=0)`，arrival batch size 为 4。
+
 ## SEG-MOD
 
 EATA、RoTTA、RoID 和 DeYO 原本面向图像分类，本项目对密集分割采用锁定的 SEG-MOD：

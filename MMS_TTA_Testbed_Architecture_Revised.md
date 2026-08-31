@@ -260,7 +260,8 @@ Rules:
 - The final partial batch is retained.
 - A batch never crosses patient or phase boundaries.
 - Slice order is preserved through reconstruction.
-- Target loaders do not shuffle and need no worker-side randomness.
+- Before volume expansion, each Vendor independently shuffles its eligible patient blocks
+  with the matching source-checkpoint seed; no worker-side or global RNG state is used.
 
 ### 4.3 Timing
 
@@ -332,8 +333,8 @@ def build_source_loaders(cfg):
     ...
 
 
-def build_target_stream(vendor, cfg):
-    """Load the authoritative order from target_streams.json."""
+def build_target_stream(vendor, cfg, order_seed):
+    """Resolve one vendor-local patient order from the checkpoint seed."""
     ...
 
 
@@ -345,7 +346,10 @@ def to_native_grid(prediction, spatial_metadata):
     ...
 ```
 
-`build_target_stream` does not accept a stream seed at runtime.
+`build_target_stream` requires the source-checkpoint seed as `order_seed`. Each target
+Vendor independently shuffles its eligible patient list with that seed. Patient blocks
+remain atomic (ED then ES), and slices within each volume remain z-index ascending.
+The resolved patient order and its SHA-256 are persisted in every run manifest.
 
 ### 5.2 `model.py`
 
@@ -1099,7 +1103,9 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 ```
 
-Target streams are unshuffled and single-process. TTA should initially run in FP32; AMP can be introduced only after deterministic equivalence is tested.
+Target patient orders are deterministically shuffled per checkpoint seed and the loaders
+remain single-process. TTA should initially run in FP32; AMP can be introduced only after
+deterministic equivalence is tested.
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "source_vendor": "A",
   "target_vendors": ["B", "C", "D"],
   "protocol_file": "../data/splits/mms_vendor_a_to_bcd_tta.json",
@@ -7,5 +7,8 @@
   "excluded_original_parts": ["Training/Unlabeled"],
   "phase_order": ["ED", "ES"],
   "within_volume_order": "z_index_ascending",
-  "shuffle": false
+  "shuffle": true,
+  "shuffle_unit": "patient",
+  "shuffle_scope": "within_vendor",
+  "shuffle_seed_source": "source_checkpoint_seed"
 }

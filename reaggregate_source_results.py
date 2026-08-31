@@ -14,7 +14,7 @@ from typing import Any
 
 import numpy as np
 
-from data import build_target_stream
+from data import TARGET_ORDER_POLICY, build_target_stream
 from metrics import aggregate_results
 from utils import file_sha256, load_config
 
@@ -141,12 +141,9 @@ def prepare_reaggregation(
     seeds = [int(seed) for seed in cfg["experiment"]["source_seeds"]]
     protocol_hash = file_sha256(cfg["data"]["protocol_file"])
     stream_hash = file_sha256(cfg["data"]["stream_file"])
-    allowed_order = {
-        vendor: [(volume["patient_id"], volume["phase"]) for volume in build_target_stream(vendor, cfg).volumes]
-        for vendor in vendors
-    }
     prepared: dict[Path, str] = {}
     per_seed: dict[int, dict[str, dict[str, dict[str, float]]]] = {}
+    order_hashes: dict[int, dict[str, str]] = {}
     report: dict[str, Any] = {
         "mode": DERIVATION_MODE,
         "protocol_sha256": protocol_hash,
@@ -155,6 +152,14 @@ def prepare_reaggregation(
     }
 
     for seed in seeds:
+        streams = {
+            vendor: build_target_stream(vendor, cfg, order_seed=seed)
+            for vendor in vendors
+        }
+        order_hashes[seed] = {
+            vendor: str(streams[vendor].target_order_sha256)
+            for vendor in vendors
+        }
         run_root = root / f"seed{seed}" / f"{cfg['tta']['timing']}_{cfg['tta']['reset']}"
         manifest_path = run_root / "run_manifest.json"
         manifest = _read_json(manifest_path)
@@ -178,16 +183,28 @@ def prepare_reaggregation(
                     raise ValueError(f"Duplicate source result {vendor}/{key[0]}/{key[1]}")
                 keyed[key] = record
 
-            expected = allowed_order[vendor]
-            missing = [key for key in expected if key not in keyed]
+            stream = streams[vendor]
+            expected = [
+                (
+                    (volume["patient_id"], volume["phase"]),
+                    int(volume["patient_arrival_index"]),
+                    int(volume["volume_arrival_index"]),
+                )
+                for volume in stream.volumes
+            ]
+            missing = [key for key, _, _ in expected if key not in keyed]
             if missing:
                 raise ValueError(f"Missing {len(missing)} required source results in {records_path}")
             kept = []
-            for key in expected:
+            for key, patient_arrival_index, volume_arrival_index in expected:
                 record = deepcopy(keyed[key])
                 record["derivation"] = _lineage(record, old_protocol_hash, old_stream_hash)
                 record["protocol_sha256"] = protocol_hash
                 record["target_stream_sha256"] = stream_hash
+                record["target_order_seed"] = seed
+                record["target_order_sha256"] = stream.target_order_sha256
+                record["patient_arrival_index"] = patient_arrival_index
+                record["volume_arrival_index"] = volume_arrival_index
                 kept.append(record)
             summary = aggregate_results(
                 kept,
@@ -200,12 +217,24 @@ def prepare_reaggregation(
                 "output_records": len(kept),
                 "removed_records": len(records) - len(kept),
                 "n_patients": summary["dice_macro"]["n_patients"],
+                "target_order_seed": seed,
+                "target_order_sha256": stream.target_order_sha256,
             }
             prepared[records_path] = _jsonl_text(kept)
             prepared[run_root / f"vendor_{vendor}_summary.json"] = _json_text(summary)
 
         manifest["protocol_sha256"] = protocol_hash
         manifest["target_stream_sha256"] = stream_hash
+        manifest["target_order_policy"] = {**TARGET_ORDER_POLICY, "vendor_order": vendors}
+        manifest["target_order_seed"] = seed
+        manifest["target_orders"] = {
+            vendor: {
+                "order_seed": seed,
+                "patient_ids": streams[vendor].patient_order,
+                "target_order_sha256": streams[vendor].target_order_sha256,
+            }
+            for vendor in vendors
+        }
         manifest["resolved_config"] = deepcopy(cfg)
         manifest["summaries"] = seed_summaries
         manifest["derivation"] = _lineage(manifest, old_protocol_hash, old_stream_hash)
@@ -215,6 +244,10 @@ def prepare_reaggregation(
         report["seeds"][str(seed)] = seed_report
 
     combined = _five_seed_summary(per_seed, vendors, seeds)
+    combined["target_order_seed_source"] = "source_checkpoint_seed"
+    combined["target_order_sha256"] = {
+        str(seed): order_hashes[seed] for seed in seeds
+    }
     combined["derivation"] = {
         "mode": DERIVATION_MODE,
         "inference_reused": True,

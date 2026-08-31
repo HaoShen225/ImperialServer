@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from data import build_target_stream, split_volume_into_batches
+from data import TARGET_ORDER_POLICY, build_target_stream, split_volume_into_batches
 from metrics import aggregate_results, evaluate_volume
 from model import build_model, load_source_checkpoint
 from tta_methods import METHODS, BaseTTA, build_method
@@ -213,10 +213,18 @@ def run_experiment(
     fisher_hash = file_sha256(method_cfg["fisher_path"]) if method_name == "eata" else None
     result_root = Path(cfg["tta"]["results_dir"]) / method_name / f"seed{source_seed}" / f"{cfg['tta']['timing']}_{cfg['tta']['reset']}"
     summaries: dict[str, Any] = {}
+    target_orders: dict[str, Any] = {}
     for vendor_index, vendor in enumerate(vendors):
         if cfg["tta"]["reset"] == "vendor" or (vendor_index == 0 and cfg["tta"]["reset"] != "never"):
             method.reset()
-        dataset = build_target_stream(vendor, cfg)
+        dataset = build_target_stream(vendor, cfg, order_seed=source_seed)
+        if dataset.order_seed != source_seed:
+            raise RuntimeError("Resolved target order seed differs from the source checkpoint seed")
+        target_orders[vendor] = {
+            "order_seed": dataset.order_seed,
+            "patient_ids": dataset.patient_order,
+            "target_order_sha256": dataset.target_order_sha256,
+        }
         records = []
         for volume_index in range(len(dataset)):
             if cfg["tta"]["reset"] == "patient":
@@ -242,12 +250,16 @@ def run_experiment(
                 "profile_verified": bool(method_cfg["profile_verified"]),
                 "profile_kind": method_cfg["profile_kind"],
                 "source_seed": source_seed,
+                "target_order_seed": dataset.order_seed,
+                "target_order_sha256": dataset.target_order_sha256,
                 "initialization_profile": initialization_profile,
                 "method_seed": int(method_cfg["method_seed"]),
                 "vendor": vendor,
                 "patient_id": volume["patient_id"],
                 "phase": volume["phase"],
                 "volume_id": volume["volume_id"],
+                "patient_arrival_index": volume["patient_arrival_index"],
+                "volume_arrival_index": volume["volume_arrival_index"],
                 "timing": cfg["tta"]["timing"],
                 "reset": cfg["tta"]["reset"],
                 "prediction_source": method.prediction_source,
@@ -282,6 +294,9 @@ def run_experiment(
         "fisher_sha256": fisher_hash,
         "protocol_sha256": protocol_hash,
         "target_stream_sha256": stream_hash,
+        "target_order_policy": {**TARGET_ORDER_POLICY, "vendor_order": vendors},
+        "target_order_seed": source_seed,
+        "target_orders": target_orders,
         "summaries": summaries,
     }
     save_json(manifest, result_root / "run_manifest.json")

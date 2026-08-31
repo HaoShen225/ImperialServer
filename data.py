@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import random
 from collections import defaultdict
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
+
+
+TARGET_ORDER_POLICY = {
+    "shuffle": True,
+    "shuffle_unit": "patient",
+    "shuffle_scope": "within_vendor",
+    "shuffle_seed_source": "source_checkpoint_seed",
+    "phase_order": ["ED", "ES"],
+    "within_volume_order": "z_index_ascending",
+}
 
 
 def _read_json(path: str | Path) -> dict[str, Any]:
@@ -88,9 +101,20 @@ def build_source_loaders(
 class MMSTargetVolumeDataset(Dataset):
     """Image-only target volumes; masks are loaded explicitly after inference."""
 
-    def __init__(self, volumes: Sequence[dict[str, Any]], data_root: str | Path):
+    def __init__(
+        self,
+        volumes: Sequence[dict[str, Any]],
+        data_root: str | Path,
+        *,
+        order_seed: int | None = None,
+        patient_order: Sequence[str] | None = None,
+        target_order_sha256: str | None = None,
+    ):
         self.volumes = list(volumes)
         self.data_root = Path(data_root)
+        self.order_seed = order_seed
+        self.patient_order = list(patient_order) if patient_order is not None else None
+        self.target_order_sha256 = target_order_sha256
 
     def __len__(self) -> int:
         return len(self.volumes)
@@ -122,16 +146,40 @@ def _volume_index(cfg: dict[str, Any]) -> dict[tuple[str, str, str], list[dict[s
     return grouped
 
 
-def build_target_stream(vendor: str, cfg: dict[str, Any]) -> MMSTargetVolumeDataset:
+def target_order_sha256(vendor: str, order_seed: int, patient_ids: Sequence[str]) -> str:
+    """Hash one resolved vendor-local patient order for result provenance."""
+    payload = {
+        "vendor": vendor,
+        "order_seed": int(order_seed),
+        "patient_ids": list(patient_ids),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def build_target_stream(
+    vendor: str,
+    cfg: dict[str, Any],
+    order_seed: int,
+) -> MMSTargetVolumeDataset:
+    if isinstance(order_seed, bool) or not isinstance(order_seed, Integral):
+        raise TypeError("order_seed must be an integer checkpoint seed")
+    resolved_order_seed = int(order_seed)
     stream_cfg = _read_json(cfg["data"]["stream_file"])
     if vendor not in stream_cfg["target_vendors"]:
         raise ValueError(f"Vendor {vendor!r} is not in the authoritative target stream")
+    for key, expected in TARGET_ORDER_POLICY.items():
+        if stream_cfg.get(key) != expected:
+            raise ValueError(
+                f"Target stream policy mismatch for {key}: "
+                f"expected {expected!r}, got {stream_cfg.get(key)!r}"
+            )
     protocol = load_protocol(cfg)
     target_cfg = protocol["targets"][vendor]
     patients = target_cfg["patient_ids"]
     excluded_parts = set(stream_cfg.get("excluded_original_parts", []))
     index = _volume_index(cfg)
-    volumes: list[dict[str, Any]] = []
+    patient_blocks: list[tuple[str, list[dict[str, Any]]]] = []
     for patient_id in patients:
         patient_volumes: list[dict[str, Any]] = []
         original_parts: set[str] = set()
@@ -154,14 +202,30 @@ def build_target_stream(vendor: str, cfg: dict[str, Any]) -> MMSTargetVolumeData
             continue
         if len(original_parts) != 1:
             raise ValueError(f"Mixed original parts across target patient {vendor}/{patient_id}")
-        volumes.extend(patient_volumes)
-    patient_count = len({volume["patient_id"] for volume in volumes})
+        patient_blocks.append((patient_id, patient_volumes))
+    patient_count = len(patient_blocks)
     expected_count = int(target_cfg["counts"]["patients"])
     if patient_count != expected_count:
         raise ValueError(
             f"Target stream count mismatch for vendor {vendor}: expected {expected_count}, got {patient_count}"
         )
-    return MMSTargetVolumeDataset(volumes, cfg["data"]["root"])
+    random.Random(resolved_order_seed).shuffle(patient_blocks)
+    patient_order = [patient_id for patient_id, _ in patient_blocks]
+    volumes: list[dict[str, Any]] = []
+    for patient_arrival_index, (_, patient_volumes) in enumerate(patient_blocks):
+        for phase_arrival_index, volume in enumerate(patient_volumes):
+            volume["patient_arrival_index"] = patient_arrival_index
+            volume["volume_arrival_index"] = len(volumes)
+            volume["phase_arrival_index"] = phase_arrival_index
+            volumes.append(volume)
+    order_hash = target_order_sha256(vendor, resolved_order_seed, patient_order)
+    return MMSTargetVolumeDataset(
+        volumes,
+        cfg["data"]["root"],
+        order_seed=resolved_order_seed,
+        patient_order=patient_order,
+        target_order_sha256=order_hash,
+    )
 
 
 def build_source_validation_volumes(cfg: dict[str, Any]) -> MMSTargetVolumeDataset:

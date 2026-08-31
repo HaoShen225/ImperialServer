@@ -79,9 +79,19 @@ def test_source_reaggregation_filters_and_overwrites(tmp_path, monkeypatch):
         {"patient_id": "P1", "phase": "ED"},
         {"patient_id": "P1", "phase": "ES"},
     ]
-    monkeypatch.setattr(
-        reaggregate, "build_target_stream", lambda vendor, config: SimpleNamespace(volumes=volumes)
-    )
+    def stream(vendor, config, order_seed):
+        assert order_seed in (1, 2)
+        resolved = [
+            {**volume, "patient_arrival_index": 0, "volume_arrival_index": index}
+            for index, volume in enumerate(volumes)
+        ]
+        return SimpleNamespace(
+            volumes=resolved,
+            patient_order=["P1"],
+            target_order_sha256=f"order-{order_seed}",
+        )
+
+    monkeypatch.setattr(reaggregate, "build_target_stream", stream)
 
     report = reaggregate.reaggregate_source_results(cfg, root, overwrite=True)
 
@@ -91,6 +101,8 @@ def test_source_reaggregation_filters_and_overwrites(tmp_path, monkeypatch):
     output = [json.loads(line) for line in output_path.read_text().splitlines()]
     assert [(row["patient_id"], row["phase"]) for row in output] == [("P1", "ED"), ("P1", "ES")]
     assert output[0]["derivation"]["source_protocol_sha256"] == "old-protocol"
+    assert output[0]["target_order_seed"] == 1
+    assert output[0]["target_order_sha256"] == "order-1"
     summary = json.loads(
         (root / "seed1" / "adapt_then_predict_vendor" / "vendor_C_summary.json").read_text()
     )
@@ -103,7 +115,16 @@ def test_source_reaggregation_rejects_adaptive_records(tmp_path, monkeypatch):
     monkeypatch.setattr(
         reaggregate,
         "build_target_stream",
-        lambda vendor, config: SimpleNamespace(volumes=[{"patient_id": "P1", "phase": "ED"}]),
+        lambda vendor, config, order_seed: SimpleNamespace(
+            volumes=[{
+                "patient_id": "P1",
+                "phase": "ED",
+                "patient_arrival_index": 0,
+                "volume_arrival_index": 0,
+            }],
+            patient_order=["P1"],
+            target_order_sha256=f"order-{order_seed}",
+        ),
     )
     with pytest.raises(ValueError, match="Adaptive record"):
         reaggregate.prepare_reaggregation(cfg, root)

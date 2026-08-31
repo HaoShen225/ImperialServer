@@ -36,7 +36,7 @@ data/
 
 - `patients.csv`：vendor、中心、病理类型和 ED/ES frame 等患者级信息；原始 Windows 路径只作为历史元数据，不用于运行。
 - `volumes.csv`：原始/重采样尺寸、spacing、切片数和前景统计。
-- `slices.csv`：运行时的主要索引。目标流按 `patient_id → ED/ES → z_index` 读取。
+- `slices.csv`：运行时的主要索引。每个 checkpoint seed 在各 Vendor 内独立打乱患者，随后按 `patient → ED/ES → z_index` 读取。
 - `qc_report.json`：345 名患者、690 个 ED/ES 体积及各 vendor 数量的预处理汇总。
 
 完整数据清单仍保留所有 345 名患者；正式 C 域测评只使用 Validation 10 名和 Testing 40 名患者，共 50 名患者、100 个 ED/ES 体积。
@@ -51,5 +51,5 @@ data/
 from data import build_source_loaders, build_target_stream
 
 train_loader, val_loader = build_source_loaders(cfg, seed=2022)
-vendor_b_stream = build_target_stream("B", cfg)
+vendor_b_stream = build_target_stream("B", cfg, order_seed=2022)
 ```

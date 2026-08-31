@@ -122,7 +122,7 @@ class MMSTargetVolumeDataset(Dataset):
     def __getitem__(self, index: int) -> dict[str, Any]:
         volume = self.volumes[index]
         images = [np.load(self.data_root / row["image"], allow_pickle=False) for row in volume["slices"]]
-        return {
+        item = {
             "volume_id": volume["volume_id"],
             "patient_id": volume["patient_id"],
             "phase": volume["phase"],
@@ -131,6 +131,14 @@ class MMSTargetVolumeDataset(Dataset):
             "mask_paths": [row["mask"] for row in volume["slices"]],
             "z_indices": [int(row["z_index"]) for row in volume["slices"]],
         }
+        for key in (
+            "patient_arrival_index",
+            "volume_arrival_index",
+            "phase_arrival_index",
+        ):
+            if key in volume:
+                item[key] = volume[key]
+        return item
 
     def load_mask(self, volume: dict[str, Any]) -> torch.Tensor:
         masks = [np.load(self.data_root / path, allow_pickle=False) for path in volume["mask_paths"]]

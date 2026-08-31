@@ -4,7 +4,12 @@ import random
 
 import pytest
 
-from data import _source_records, build_target_stream, split_volume_into_batches
+from data import (
+    _source_records,
+    build_source_validation_volumes,
+    build_target_stream,
+    split_volume_into_batches,
+)
 
 
 def test_locked_source_split_and_target_disjoint(config):
@@ -49,6 +54,17 @@ def test_target_mask_is_lazy(config):
     assert volume["image"].shape[0] == len(volume["mask_paths"])
     mask = stream.load_mask(volume)
     assert mask.shape == volume["image"].shape[:1] + volume["image"].shape[-2:]
+    assert volume["patient_arrival_index"] == 0
+    assert volume["volume_arrival_index"] == 0
+    assert volume["phase_arrival_index"] == 0
+
+
+def test_source_validation_volume_remains_compatible_without_arrival_metadata(config):
+    stream = build_source_validation_volumes(config)
+    volume = stream[0]
+    assert "patient_arrival_index" not in volume
+    assert "volume_arrival_index" not in volume
+    assert "phase_arrival_index" not in volume
 
 
 @pytest.mark.parametrize("vendor", ["B", "C", "D"])
@@ -71,6 +87,15 @@ def test_target_order_is_seeded_reproducible_and_patient_atomic(config, vendor):
         assert ed["patient_arrival_index"] == es["patient_arrival_index"] == patient_index
         assert ed["volume_arrival_index"] == 2 * patient_index
         assert es["volume_arrival_index"] == 2 * patient_index + 1
+    for volume_index in (0, 1, len(first) - 1):
+        expected_volume = first.volumes[volume_index]
+        loaded_volume = first[volume_index]
+        for key in (
+            "patient_arrival_index",
+            "volume_arrival_index",
+            "phase_arrival_index",
+        ):
+            assert loaded_volume[key] == expected_volume[key]
 
 
 def test_target_order_does_not_mutate_global_random_state(config):

@@ -241,7 +241,7 @@ def reaggregate_source_results(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="config.yaml")
-    parser.add_argument("--results-root", default="results/source")
+    parser.add_argument("--results-root")
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -253,7 +253,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
-    report = reaggregate_source_results(cfg, args.results_root, overwrite=args.overwrite)
+    results_root = args.results_root or str(Path(cfg["tta"]["results_dir"]) / "source")
+    report = reaggregate_source_results(cfg, results_root, overwrite=args.overwrite)
     print(json.dumps(report, indent=2, sort_keys=True, allow_nan=False))
 
 

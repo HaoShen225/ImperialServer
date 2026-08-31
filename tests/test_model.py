@@ -3,8 +3,10 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+import model as model_module
 from model import build_model
 from train_source import build_source_optimizer, source_loss
+from utils import set_seed, state_dict_sha256
 
 
 def test_resunet34_shape_and_bn_decoder(config):
@@ -15,6 +17,34 @@ def test_resunet34_shape_and_bn_decoder(config):
     assert output["logits"].shape == (1, 4, 64, 64)
     assert output["features"].shape[-2:] == (64, 64)
     assert any(isinstance(module, nn.BatchNorm2d) for name, module in model.named_modules() if name.startswith("decoder"))
+
+
+def test_stochastic_initialization_is_seeded_and_uses_no_pretrained_weights(config, monkeypatch):
+    original = model_module.resnet34
+    weights_arguments = []
+
+    def capture_weights(*args, **kwargs):
+        weights_arguments.append(kwargs.get("weights"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(model_module, "resnet34", capture_weights)
+    set_seed(2022)
+    first = build_model(config)
+    first_hash = state_dict_sha256(first.state_dict())
+    del first
+    set_seed(2022)
+    second = build_model(config)
+    second_hash = state_dict_sha256(second.state_dict())
+    del second
+    set_seed(2023)
+    third = build_model(config)
+    third_hash = state_dict_sha256(third.state_dict())
+
+    assert config["experiment"]["initialization_profile"] == "stochastic"
+    assert config["model"]["pretrained_encoder"] is False
+    assert weights_arguments == [None, None, None]
+    assert first_hash == second_hash
+    assert first_hash != third_hash
 
 
 def test_source_loss_and_optimizer_groups(tiny_model):

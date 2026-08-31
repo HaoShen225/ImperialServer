@@ -15,7 +15,15 @@ from torch.nn import functional as F
 from data import build_source_loaders, build_source_validation_volumes, split_volume_into_batches
 from metrics import evaluate_volume
 from model import build_model, load_source_checkpoint
-from utils import file_sha256, get_device, load_config, run_metadata, save_json, set_seed
+from utils import (
+    file_sha256,
+    get_device,
+    load_config,
+    run_metadata,
+    save_json,
+    set_seed,
+    state_dict_sha256,
+)
 
 
 def foreground_soft_dice_loss(logits: torch.Tensor, target: torch.Tensor, epsilon: float = 1e-6) -> torch.Tensor:
@@ -145,6 +153,8 @@ def train_source_seed(
     train_loader, _ = build_source_loaders(cfg, seed=seed, batch_size=batch_size)
     val_volumes = build_source_validation_volumes(cfg)
     model = build_model(cfg).to(device)
+    initialization_profile = str(cfg["experiment"]["initialization_profile"])
+    initial_model_sha256 = state_dict_sha256(model.state_dict())
     initial_parameters = {name: parameter.detach().cpu().clone() for name, parameter in model.named_parameters()}
     optimizer = build_source_optimizer(model, cfg)
     best_dice = -math.inf
@@ -186,6 +196,8 @@ def train_source_seed(
                 "validation_dice_macro": score,
                 "seed": seed,
                 "smoke_test": smoke_test,
+                "initialization_profile": initialization_profile,
+                "initial_model_sha256": initial_model_sha256,
                 "config": cfg,
                 "protocol_sha256": file_sha256(cfg["data"]["protocol_file"]),
             }, checkpoint_path)
@@ -202,6 +214,8 @@ def train_source_seed(
     save_json({
         "checkpoint": str(checkpoint_path),
         "checkpoint_sha256": file_sha256(checkpoint_path),
+        "initialization_profile": initialization_profile,
+        "initial_model_sha256": initial_model_sha256,
         "best_validation_dice_macro": best_dice,
         "history": history,
         "runtime": run_metadata(Path(__file__).resolve().parent),
@@ -254,7 +268,15 @@ def main() -> None:
                 if args.smoke_test
                 else Path(cfg["source"]["checkpoint_dir"]) / f"fisher_seed{seed}.pt"
             )
-            estimate_fisher(model, loader, cfg["methods"]["eata"], device, output)
+            estimate_fisher(
+                model,
+                loader,
+                cfg["methods"]["eata"],
+                device,
+                output,
+                source_checkpoint_sha256=file_sha256(checkpoint),
+                initialization_profile=str(cfg["experiment"]["initialization_profile"]),
+            )
             print(f"fisher artifact: {output} sha256={file_sha256(output)}")
 
 

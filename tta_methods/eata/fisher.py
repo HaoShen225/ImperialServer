@@ -15,6 +15,9 @@ def estimate_fisher(
     cfg: dict[str, Any],
     device: torch.device,
     output: str | Path,
+    *,
+    source_checkpoint_sha256: str | None = None,
+    initialization_profile: str | None = None,
 ) -> Path:
     configure_bn_for_batch_stats(model)
     parameters, names = collect_bn_affine(model)
@@ -46,6 +49,8 @@ def estimate_fisher(
         "parameter_names": names,
         "samples": seen,
         "objective": "pseudo_label_pixel_cross_entropy",
+        "source_checkpoint_sha256": source_checkpoint_sha256,
+        "initialization_profile": initialization_profile,
     }
     destination = Path(output)
     destination.parent.mkdir(parents=True, exist_ok=True)

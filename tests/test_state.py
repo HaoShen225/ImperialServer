@@ -43,3 +43,9 @@ def test_set_seed_uses_warn_only_determinism(monkeypatch):
     utils.set_seed(2022, deterministic=True)
 
     assert calls == [(True, True)]
+
+
+def test_stochastic_artifact_namespaces_are_locked():
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
+    assert cfg["source"]["checkpoint_dir"] == "checkpoints/Stochastic_Ini"
+    assert cfg["tta"]["results_dir"] == "results/Stochastic_Ini"

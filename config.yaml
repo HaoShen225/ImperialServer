@@ -2,6 +2,7 @@ experiment:
   source_seeds: [2022, 2023, 2024, 2025, 2026]
   harness_seed: 3101
   target_vendors: [B, C, D]
+  initialization_profile: stochastic
 
 data:
   root: data
@@ -17,7 +18,7 @@ data:
 
 model:
   name: resunet34
-  pretrained_encoder: true
+  pretrained_encoder: false
   in_channels: 1
   num_classes: 4
   encoder_norm: batch_norm
@@ -35,7 +36,7 @@ source:
   min_lr: 0.000001
   early_stopping_patience: 30
   dice_epsilon: 0.000001
-  checkpoint_dir: checkpoints
+  checkpoint_dir: checkpoints/Stochastic_Ini
   smoke:
     batch_size: 2
     epochs: 1
@@ -57,7 +58,7 @@ tta:
   reset: vendor
   deterministic: true
   precision: fp32
-  results_dir: results
+  results_dir: results/Stochastic_Ini
 
 methods:
   source:

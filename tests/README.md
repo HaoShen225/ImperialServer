@@ -8,7 +8,7 @@
 |---|---|
 | `test_data.py` | 患者划分无重叠、B/C/D 目标流、C 无标注排除、切片顺序、尾 batch、mask 延迟加载 |
 | `test_metrics.py` | 3D Dice、`HD95_px`、缺失类别有限对角线惩罚、患者级 bootstrap |
-| `test_model.py` | ResUNet-34 输出形状、decoder BN、CE+Dice 和 AdamW 参数组 |
+| `test_model.py` | ResUNet-34 输出形状、随机初始化可复现性、decoder BN、CE+Dice 和 AdamW 参数组 |
 | `test_protocol.py` | 无标签 `run_volume` 边界、空标签防护、mask permutation immunity、两种 timing |
 | `test_reaggregate.py` | source-only 离线过滤、派生哈希记录、拒绝自适应结果 |
 | `test_methods.py` | 八方法构造/更新、BN policy、trainable scope、随机 reset replay、RoTTA RBN |
@@ -50,6 +50,6 @@ cd /rds/general/user/hs225/home/mms_TTA
   --smoke-test
 ```
 
-该命令只训练两个 batch、验证一个体积，并检查 loss 有限、参数确实更新、checkpoint 可重载且重载 logits 一致。生成物写入 `checkpoints/smoke/`，不会提交到 Git。
+该命令只训练两个 batch、验证一个体积，并检查 loss 有限、参数确实更新、checkpoint 可重载且重载 logits 一致。生成物写入 `checkpoints/Stochastic_Ini/smoke/`，不会提交到 Git。
 
 提交代码前至少运行完整 `pytest -q` 和 `git diff --check`。任何涉及协议、状态或方法更新范围的修改，都应同时添加对应的回归测试。

@@ -191,12 +191,25 @@ def run_experiment(
     if not checkpoint.is_file():
         raise FileNotFoundError(f"Source checkpoint is missing: {checkpoint}")
     model = build_model(cfg, pretrained_override=False)
-    load_source_checkpoint(model, checkpoint, map_location="cpu")
+    checkpoint_payload = load_source_checkpoint(model, checkpoint, map_location="cpu")
+    expected_initialization = str(cfg["experiment"]["initialization_profile"])
+    checkpoint_initialization = checkpoint_payload.get("initialization_profile")
+    if checkpoint_initialization is None:
+        checkpoint_pretrained = bool(
+            checkpoint_payload.get("config", {}).get("model", {}).get("pretrained_encoder")
+        )
+        checkpoint_initialization = "imagenet" if checkpoint_pretrained else "stochastic"
+    if checkpoint_initialization != expected_initialization:
+        raise RuntimeError(
+            "Source checkpoint initialization does not match the active experiment profile: "
+            f"{checkpoint_initialization!r} != {expected_initialization!r}"
+        )
     method_cfg = _method_config(cfg, method_name, source_seed)
     method = build_method(method_name, model, method_cfg, cfg["tta"], device)
     protocol_hash = file_sha256(cfg["data"]["protocol_file"])
     stream_hash = file_sha256(cfg["data"]["stream_file"])
     checkpoint_hash = file_sha256(checkpoint)
+    initialization_profile = expected_initialization
     fisher_hash = file_sha256(method_cfg["fisher_path"]) if method_name == "eata" else None
     result_root = Path(cfg["tta"]["results_dir"]) / method_name / f"seed{source_seed}" / f"{cfg['tta']['timing']}_{cfg['tta']['reset']}"
     summaries: dict[str, Any] = {}
@@ -229,6 +242,7 @@ def run_experiment(
                 "profile_verified": bool(method_cfg["profile_verified"]),
                 "profile_kind": method_cfg["profile_kind"],
                 "source_seed": source_seed,
+                "initialization_profile": initialization_profile,
                 "method_seed": int(method_cfg["method_seed"]),
                 "vendor": vendor,
                 "patient_id": volume["patient_id"],
@@ -259,6 +273,7 @@ def run_experiment(
     manifest = {
         "method": method_name,
         "source_seed": source_seed,
+        "initialization_profile": initialization_profile,
         "vendors": vendors,
         "resolved_config": cfg,
         "resolved_method_config": method_cfg,

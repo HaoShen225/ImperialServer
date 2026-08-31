@@ -33,6 +33,20 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
     if missing:
         raise ValueError(f"Missing configuration section(s): {sorted(missing)}")
 
+    _reject_unknown_keys(
+        cfg["experiment"],
+        {"source_seeds", "harness_seed", "target_vendors", "initialization_profile"},
+        "experiment",
+    )
+    initialization_profile = cfg["experiment"].get("initialization_profile")
+    if initialization_profile not in {"imagenet", "stochastic"}:
+        raise ValueError("initialization_profile must be 'imagenet' or 'stochastic'")
+    expected_pretrained = initialization_profile == "imagenet"
+    if bool(cfg["model"]["pretrained_encoder"]) != expected_pretrained:
+        raise ValueError(
+            "model.pretrained_encoder is inconsistent with experiment.initialization_profile"
+        )
+
     method_keys = {
         "source": {"profile_verified", "profile_kind", "method_seed"},
         "tent": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay"},
@@ -85,6 +99,18 @@ def file_sha256(path: str | Path) -> str:
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def state_dict_sha256(state: Mapping[str, torch.Tensor]) -> str:
+    """Hash tensor names, metadata, and bytes without relying on torch.save."""
+    digest = hashlib.sha256()
+    for name, value in sorted(state.items()):
+        tensor = value.detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(tensor.dtype).encode("ascii"))
+        digest.update(str(tuple(tensor.shape)).encode("ascii"))
+        digest.update(tensor.numpy().tobytes())
     return digest.hexdigest()
 
 

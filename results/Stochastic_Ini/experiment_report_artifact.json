@@ -1,0 +1,406 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "MMS Vendor A → B/C/D：Source、TENT 与 SAR 五随机种子实验报告",
+    "description": "基于 checkpoint seed 与目标病例到达顺序配对的 5-seed 技术评估。",
+    "generatedAt": "2026-09-01T14:17:33+01:00",
+    "sources": [
+      {
+        "id": "aggregate_summaries",
+        "label": "Source/TENT/SAR 5-seed aggregate summaries",
+        "path": "results/Stochastic_Ini",
+        "query": {
+          "engine": "DuckDB",
+          "language": "sql",
+          "description": "从三个五随机种子汇总 JSON 中提取 Vendor B/C/D 的 macro Dice、macro HD95 及逐类别 Dice；报告中的跨域总值是在每个 seed 内对 B/C/D 等权平均后，再跨 seed 求均值和样本标准差。",
+          "executed_at": "2026-09-01T14:17:33+01:00",
+          "tables_used": [
+            "results/Stochastic_Ini/source/source_5seed_summary.json",
+            "results/Stochastic_Ini/tent/tent_5seed_summary.json",
+            "results/Stochastic_Ini/sar/sar_5seed_summary.json"
+          ],
+          "filters": [
+            "source checkpoint seeds: 2022, 2023, 2024, 2025, 2026",
+            "target vendors: B, C, D",
+            "Vendor C Training/Unlabeled excluded",
+            "timing: adapt_then_predict",
+            "patient order seed equals checkpoint seed"
+          ],
+          "metric_definitions": [
+            "Dice macro = arithmetic mean of RV, MYO and LV patient-level Dice; higher is better.",
+            "HD95_px macro = arithmetic mean of RV, MYO and LV 95th-percentile Hausdorff distance in processed 256x256 pixels; lower is better.",
+            "Across-seed variability uses sample standard deviation (ddof=1).",
+            "Paired delta = TTA metric minus Source metric for the same checkpoint seed and target-patient order.",
+            "BCD overall = equal mean of Vendor B, C and D within each seed, followed by mean and sample standard deviation across five seeds."
+          ],
+          "sql": "WITH source_summary AS (SELECT * FROM read_json_auto('results/Stochastic_Ini/source/source_5seed_summary.json')), tent_summary AS (SELECT * FROM read_json_auto('results/Stochastic_Ini/tent/tent_5seed_summary.json')), sar_summary AS (SELECT * FROM read_json_auto('results/Stochastic_Ini/sar/sar_5seed_summary.json')) SELECT 'Source' AS method, 'B' AS vendor, results.B.dice_macro.mean AS dice_mean, results.B.dice_macro.std AS dice_std, results.B.hd95_px_macro.mean AS hd95_mean, results.B.hd95_px_macro.std AS hd95_std FROM source_summary UNION ALL SELECT 'TENT','B',results.B.dice_macro.mean,results.B.dice_macro.std,results.B.hd95_px_macro.mean,results.B.hd95_px_macro.std FROM tent_summary UNION ALL SELECT 'SAR','B',results.B.dice_macro.mean,results.B.dice_macro.std,results.B.hd95_px_macro.mean,results.B.hd95_px_macro.std FROM sar_summary UNION ALL SELECT 'Source','C',results.C.dice_macro.mean,results.C.dice_macro.std,results.C.hd95_px_macro.mean,results.C.hd95_px_macro.std FROM source_summary UNION ALL SELECT 'TENT','C',results.C.dice_macro.mean,results.C.dice_macro.std,results.C.hd95_px_macro.mean,results.C.hd95_px_macro.std FROM tent_summary UNION ALL SELECT 'SAR','C',results.C.dice_macro.mean,results.C.dice_macro.std,results.C.hd95_px_macro.mean,results.C.hd95_px_macro.std FROM sar_summary UNION ALL SELECT 'Source','D',results.D.dice_macro.mean,results.D.dice_macro.std,results.D.hd95_px_macro.mean,results.D.hd95_px_macro.std FROM source_summary UNION ALL SELECT 'TENT','D',results.D.dice_macro.mean,results.D.dice_macro.std,results.D.hd95_px_macro.mean,results.D.hd95_px_macro.std FROM tent_summary UNION ALL SELECT 'SAR','D',results.D.dice_macro.mean,results.D.dice_macro.std,results.D.hd95_px_macro.mean,results.D.hd95_px_macro.std FROM sar_summary;"
+        }
+      },
+      {
+        "id": "sar_probe",
+        "label": "SAR entropy-label probe summary",
+        "path": "results/Stochastic_Ini/sar/sar_5seed_summary.json",
+        "query": {
+          "engine": "DuckDB",
+          "language": "sql",
+          "description": "提取 SAR 两阶段熵筛选 probe 的 slice coverage、全像素伪标签准确率和真值前景像素准确率。",
+          "executed_at": "2026-09-01T14:17:33+01:00",
+          "tables_used": [
+            "results/Stochastic_Ini/sar/sar_5seed_summary.json"
+          ],
+          "filters": [
+            "vendors: B, C, D",
+            "stages: first_filter, second_filter",
+            "seeds: 2022-2026"
+          ],
+          "metric_definitions": [
+            "Selection coverage = selected slices / seen slices.",
+            "Pixel accuracy = correct pseudo-label pixels / selected pixels; background is included.",
+            "Foreground pixel accuracy = correct predictions on pixels whose ground-truth class is RV, MYO or LV / all ground-truth foreground pixels.",
+            "Mean and sample standard deviation are computed over five seeds."
+          ],
+          "sql": "WITH sar AS (SELECT * FROM read_json_auto('results/Stochastic_Ini/sar/sar_5seed_summary.json')) SELECT 'B' AS vendor, 'First filter' AS stage, entropy_label_probe.B.first_filter.selection_coverage.mean AS coverage, entropy_label_probe.B.first_filter.pixel_accuracy.mean AS pixel_accuracy, entropy_label_probe.B.first_filter.foreground_pixel_accuracy.mean AS foreground_accuracy FROM sar UNION ALL SELECT 'B','Second filter',entropy_label_probe.B.second_filter.selection_coverage.mean,entropy_label_probe.B.second_filter.pixel_accuracy.mean,entropy_label_probe.B.second_filter.foreground_pixel_accuracy.mean FROM sar UNION ALL SELECT 'C','First filter',entropy_label_probe.C.first_filter.selection_coverage.mean,entropy_label_probe.C.first_filter.pixel_accuracy.mean,entropy_label_probe.C.first_filter.foreground_pixel_accuracy.mean FROM sar UNION ALL SELECT 'C','Second filter',entropy_label_probe.C.second_filter.selection_coverage.mean,entropy_label_probe.C.second_filter.pixel_accuracy.mean,entropy_label_probe.C.second_filter.foreground_pixel_accuracy.mean FROM sar UNION ALL SELECT 'D','First filter',entropy_label_probe.D.first_filter.selection_coverage.mean,entropy_label_probe.D.first_filter.pixel_accuracy.mean,entropy_label_probe.D.first_filter.foreground_pixel_accuracy.mean FROM sar UNION ALL SELECT 'D','Second filter',entropy_label_probe.D.second_filter.selection_coverage.mean,entropy_label_probe.D.second_filter.pixel_accuracy.mean,entropy_label_probe.D.second_filter.foreground_pixel_accuracy.mean FROM sar;"
+        }
+      },
+      {
+        "id": "result_validation",
+        "label": "Per-seed result files and run manifests",
+        "path": "results/Stochastic_Ini",
+        "query": {
+          "engine": "Python 3.6 standard library",
+          "language": "python",
+          "description": "读取 15 个 run_manifest.json、45 个 vendor JSONL 和 45 个 vendor summary，重新计算均值/样本标准差并检查方法间 checkpoint、seed、患者计数和目标顺序哈希。",
+          "executed_at": "2026-09-01T14:17:33+01:00",
+          "filters": ["methods: source, tent, sar", "seeds: 2022-2026", "vendors: B, C, D"]
+        }
+      },
+      {
+        "id": "pbs_status",
+        "label": "PBS Pro completed job records",
+        "query": {
+          "engine": "PBS Pro qstat",
+          "query": "qstat -x -f 3961278[] 3961279[] 3961280[] 3961281 3961282 3961283",
+          "description": "历史任务记录中读取数组任务、聚合任务的 final state 和 Exit_status。",
+          "executed_at": "2026-09-01T14:08:00+01:00"
+        }
+      }
+    ],
+    "charts": [
+      {
+        "id": "macro_dice_chart",
+        "title": "目标域 Macro Dice",
+        "subtitle": "五个 checkpoint seed 的均值；同一 seed 的三种方法共享病例顺序",
+        "intent": "comparison",
+        "question": "TENT 或 SAR 是否在 Vendor B/C/D 上提高总体分割重叠？",
+        "rationale": "分组柱图同时保留目标域与方法两个比较维度，适合查看绝对性能差异。",
+        "comparisonContext": {
+          "baseline": "Source",
+          "grain": "Vendor × method",
+          "normalization": "Mean across five paired seeds",
+          "semanticFamily": "segmentation overlap",
+          "unit": "Dice"
+        },
+        "type": "bar",
+        "dataset": "absolute_metrics",
+        "sourceId": "aggregate_summaries",
+        "encodings": {
+          "x": {"field": "vendor", "type": "nominal", "label": "Target vendor"},
+          "y": {"field": "dice_mean", "type": "quantitative", "format": "percent", "label": "Macro Dice"},
+          "color": {"field": "method", "type": "nominal", "label": "Method"},
+          "tooltip": [
+            {"field": "method", "type": "nominal", "label": "Method"},
+            {"field": "vendor", "type": "nominal", "label": "Vendor"},
+            {"field": "dice_mean", "type": "quantitative", "format": "percent", "label": "Mean Dice"},
+            {"field": "dice_std", "type": "quantitative", "format": "percent", "label": "Seed SD"}
+          ]
+        },
+        "valueFormat": "percent",
+        "palette": {"kind": "categorical"},
+        "legend": {"position": "right", "sort": "spec"},
+        "labels": {"values": "auto"},
+        "settings": {"groupMode": "grouped", "sort": "custom", "showValues": false},
+        "surface": {"surface": "export", "viewMode": "both", "interactiveLegend": true, "showControls": false}
+      },
+      {
+        "id": "hd95_delta_chart",
+        "title": "TTA 相对 Source 的 Macro HD95 变化",
+        "subtitle": "配对差值 = TTA − Source；正值表示边界误差恶化",
+        "intent": "comparison",
+        "question": "TENT 和 SAR 是否改善目标域边界质量？",
+        "rationale": "以零为基准的分组柱图直接展示每个 vendor 的配对变化方向和幅度。",
+        "comparisonContext": {
+          "baseline": "Source",
+          "grain": "Vendor × TTA method",
+          "normalization": "Mean of five paired seed differences",
+          "semanticFamily": "segmentation boundary error",
+          "unit": "processed pixels"
+        },
+        "type": "bar",
+        "dataset": "tta_deltas",
+        "sourceId": "aggregate_summaries",
+        "encodings": {
+          "x": {"field": "vendor", "type": "nominal", "label": "Target vendor"},
+          "y": {"field": "hd95_delta_source", "type": "quantitative", "format": "number", "unit": "px", "label": "Δ HD95_px"},
+          "color": {"field": "method", "type": "nominal", "label": "Method"},
+          "tooltip": [
+            {"field": "method", "type": "nominal", "label": "Method"},
+            {"field": "vendor", "type": "nominal", "label": "Vendor"},
+            {"field": "hd95_delta_source", "type": "quantitative", "format": "number", "unit": "px", "label": "Δ HD95_px"},
+            {"field": "dice_delta_source", "type": "quantitative", "format": "percent", "label": "Δ Dice"}
+          ]
+        },
+        "valueFormat": "number",
+        "unit": "px",
+        "palette": {"kind": "categorical"},
+        "legend": {"position": "right", "sort": "spec"},
+        "labels": {"values": "all"},
+        "settings": {"groupMode": "grouped", "sort": "custom", "showValues": true},
+        "referenceLines": [{"axis": "y", "value": 0, "label": "No change", "color": "neutral", "lineStyle": "dashed"}],
+        "surface": {"surface": "export", "viewMode": "both", "interactiveLegend": true, "showControls": false}
+      },
+      {
+        "id": "sar_probe_chart",
+        "title": "SAR 熵筛选后的前景伪标签准确率",
+        "subtitle": "仅在真值为 RV/MYO/LV 的像素上计分；五 seed 均值",
+        "intent": "comparison",
+        "question": "两阶段筛选保留下来的伪标签在真实前景区域有多可靠？",
+        "rationale": "按 vendor 和筛选阶段分组，避免由背景占比主导的全像素准确率掩盖前景错误。",
+        "comparisonContext": {
+          "grain": "Vendor × SAR filter stage",
+          "normalization": "Mean across five seeds",
+          "semanticFamily": "pseudo-label reliability",
+          "unit": "accuracy"
+        },
+        "type": "bar",
+        "dataset": "sar_probe_metrics",
+        "sourceId": "sar_probe",
+        "encodings": {
+          "x": {"field": "vendor", "type": "nominal", "label": "Target vendor"},
+          "y": {"field": "foreground_accuracy", "type": "quantitative", "format": "percent", "label": "Foreground pseudo-label accuracy"},
+          "color": {"field": "stage", "type": "nominal", "label": "Filter stage"},
+          "tooltip": [
+            {"field": "stage", "type": "nominal", "label": "Stage"},
+            {"field": "foreground_accuracy", "type": "quantitative", "format": "percent", "label": "Foreground accuracy"},
+            {"field": "pixel_accuracy", "type": "quantitative", "format": "percent", "label": "All-pixel accuracy"},
+            {"field": "coverage", "type": "quantitative", "format": "percent", "label": "Slice coverage"}
+          ]
+        },
+        "valueFormat": "percent",
+        "palette": {"kind": "categorical"},
+        "legend": {"position": "right", "sort": "spec"},
+        "labels": {"values": "all"},
+        "settings": {"groupMode": "grouped", "sort": "custom", "showValues": true},
+        "surface": {"surface": "export", "viewMode": "both", "interactiveLegend": true, "showControls": false}
+      }
+    ],
+    "tables": [
+      {
+        "id": "macro_metrics_table",
+        "title": "Vendor 级绝对性能与配对差值",
+        "subtitle": "均值与样本标准差均跨五个 checkpoint seed；Δ = 方法 − Source",
+        "dataset": "absolute_metrics",
+        "sourceId": "aggregate_summaries",
+        "density": "dense",
+        "layout": "full",
+        "columns": [
+          {"field": "vendor", "label": "Vendor", "type": "text"},
+          {"field": "method", "label": "Method", "type": "text"},
+          {"field": "dice_mean", "label": "Dice mean", "format": "percent"},
+          {"field": "dice_std", "label": "Dice seed SD", "format": "percent"},
+          {"field": "dice_delta_source", "label": "Δ Dice vs Source", "format": "percent", "movement": true},
+          {"field": "hd95_mean", "label": "HD95_px mean", "format": "number"},
+          {"field": "hd95_std", "label": "HD95_px seed SD", "format": "number"},
+          {"field": "hd95_delta_source", "label": "Δ HD95_px vs Source", "format": "number", "movement": true}
+        ]
+      },
+      {
+        "id": "class_dice_table",
+        "title": "逐类别 Dice",
+        "subtitle": "五 seed 均值与样本标准差；RV = right ventricle，MYO = myocardium，LV = left ventricle",
+        "dataset": "class_dice_metrics",
+        "sourceId": "aggregate_summaries",
+        "density": "dense",
+        "layout": "full",
+        "columns": [
+          {"field": "vendor", "label": "Vendor", "type": "text"},
+          {"field": "method", "label": "Method", "type": "text"},
+          {"field": "rv_mean", "label": "RV Dice", "format": "percent"},
+          {"field": "rv_std", "label": "RV seed SD", "format": "percent"},
+          {"field": "myo_mean", "label": "MYO Dice", "format": "percent"},
+          {"field": "myo_std", "label": "MYO seed SD", "format": "percent"},
+          {"field": "lv_mean", "label": "LV Dice", "format": "percent"},
+          {"field": "lv_std", "label": "LV seed SD", "format": "percent"}
+        ]
+      },
+      {
+        "id": "sar_probe_table",
+        "title": "SAR 熵筛选 probe",
+        "subtitle": "coverage 为 slice 级；准确率为五 seed 均值与样本标准差",
+        "dataset": "sar_probe_metrics",
+        "sourceId": "sar_probe",
+        "density": "dense",
+        "layout": "full",
+        "columns": [
+          {"field": "vendor", "label": "Vendor", "type": "text"},
+          {"field": "stage", "label": "Stage", "type": "text"},
+          {"field": "coverage", "label": "Slice coverage", "format": "percent"},
+          {"field": "pixel_accuracy", "label": "All-pixel accuracy", "format": "percent"},
+          {"field": "pixel_accuracy_std", "label": "All-pixel seed SD", "format": "percent"},
+          {"field": "foreground_accuracy", "label": "Foreground accuracy", "format": "percent"},
+          {"field": "foreground_accuracy_std", "label": "Foreground seed SD", "format": "percent"},
+          {"field": "selected_slices", "label": "Selected slices (5 seeds)", "format": "number"},
+          {"field": "seen_slices", "label": "Seen slices (5 seeds)", "format": "number"}
+        ]
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# MMS Vendor A → B/C/D：Source、TENT 与 SAR 五随机种子实验报告\n\n**生成时间：** 2026-09-01（Europe/London）  \n**实验版本：** `ce96fe54015de27658665eb29e59da4a546ebb76`  \n**结论状态：** 三组数组任务与三组聚合任务全部成功完成；本报告基于重新聚合后的结果。"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "aggregate_summaries",
+        "body": "## 技术摘要\n\n按 seed 先对 Vendor B/C/D 等权平均，再跨五 seed 汇总：Source 的 Macro Dice 为 **76.40% ± 2.51%**、Macro HD95 为 **23.30 ± 19.86 px**。TENT 的 Dice 为 **75.88% ± 2.45%**，相对 Source 的配对变化为 **−0.52 ± 1.23 个百分点**；SAR 为 **75.84% ± 2.46%**，变化为 **−0.55 ± 1.23 个百分点**。这两个 Dice 差值的配对 95% t 区间均跨 0，因此五 seed 下不能据此声称总体 Dice 有稳定改善。\n\n边界质量结论更明确：TENT 的总体 Macro HD95 增加 **16.65 ± 6.52 px**（配对 95% CI **[8.55, 24.74]**），SAR 增加 **16.81 ± 6.53 px**（**[8.70, 24.91]**）。由于 HD95 越低越好，这表示两种 TTA 都出现了稳定的边界负迁移。"
+      },
+      {
+        "id": "findings_heading",
+        "type": "markdown",
+        "body": "## 关键结果"
+      },
+      {"id": "macro_dice_block", "type": "chart", "chartId": "macro_dice_chart", "layout": "full"},
+      {
+        "id": "dice_interpretation",
+        "type": "markdown",
+        "sourceId": "aggregate_summaries",
+        "body": "TENT/SAR 只在 Vendor B 获得很小的平均 Dice 增益（分别 **+0.48**、**+0.43 个百分点**），并且仅有 3/5 seed 改善；Vendor C 略降（**−0.22**、**−0.26 个百分点**）；Vendor D 在所有 5 个 seed 均下降（**−1.83**、**−1.84 个百分点**）。因此增益不具跨域一致性。"
+      },
+      {"id": "hd95_delta_block", "type": "chart", "chartId": "hd95_delta_chart", "layout": "full"},
+      {
+        "id": "hd95_interpretation",
+        "type": "markdown",
+        "sourceId": "aggregate_summaries",
+        "body": "TENT 在 B/C/D 的 Macro HD95 分别恶化 **+11.26、+15.43、+23.25 px**；SAR 分别恶化 **+11.53、+15.49、+23.39 px**。除 Vendor C 的单个 seed 外，所有 vendor-seed 配对均未改善；Vendor B 和 D 是 0/5，Vendor C 是 1/5。SAR 与 TENT 的结果极其接近，且 SAR 在三个域的平均 Dice 都略低、HD95 都略高。"
+      },
+      {"id": "macro_table_block", "type": "table", "tableId": "macro_metrics_table", "layout": "full"},
+      {
+        "id": "class_findings",
+        "type": "markdown",
+        "sourceId": "aggregate_summaries",
+        "body": "### 类别层面\n\nTTA 的 Dice 改善主要集中于 **MYO**：TENT 相对 Source 在 B/C/D 分别约 **+3.78、+2.74、+0.30 个百分点**。代价主要落在 **LV**：分别约 **−1.76、−2.75、−4.42 个百分点**；RV 也在三个域下降。Macro Dice 因类别间抵消而看起来变化较小，但 HD95 揭示的边缘异常没有被这一平均值体现。"
+      },
+      {"id": "class_table_block", "type": "table", "tableId": "class_dice_table", "layout": "full"},
+      {
+        "id": "probe_heading",
+        "type": "markdown",
+        "sourceId": "sar_probe",
+        "body": "## SAR 熵筛选 probe\n\n两阶段筛选在 B/C/D 的 slice coverage 均为 **100%**，即 5 个 seed 合计看到的 **25,610** 个 slice 全部被保留。全像素伪标签准确率约为 **99.15%–99.33%**，但该值被占多数的背景像素显著抬高；只在真实前景像素上计分时，准确率降至 **82.80%–86.79%**。第二阶段相对第一阶段仅提升约 **0.03–0.07 个百分点**，没有形成有意义的筛选。"
+      },
+      {"id": "probe_chart_block", "type": "chart", "chartId": "sar_probe_chart", "layout": "full"},
+      {"id": "probe_table_block", "type": "table", "tableId": "sar_probe_table", "layout": "full"},
+      {
+        "id": "scope_methodology",
+        "type": "markdown",
+        "sourceId": "aggregate_summaries",
+        "body": "## 范围、数据与方法\n\n- **源域：** MMS Vendor A；**目标域：** B、C、D。Vendor C 的 `Training/Unlabeled` 已从评测序列剔除。\n- **样本量：** 每个 seed、每种方法均评测 B=125、C=50、D=50 名患者。\n- **随机性配对：** checkpoint seeds 为 2022–2026。每个 seed 内 Source/TENT/SAR 使用相同 backbone checkpoint 与相同患者到达顺序；不同 seed 的 B/C/D 顺序哈希均不同。\n- **TTA：** batch size 4；TENT 使用 SGD（lr=1e−3，momentum=0.9）；SAR 使用 SGD-SAM（lr=1e−3，momentum=0.9，rho=0.05）。均为 `adapt_then_predict`，在 vendor 边界 reset。\n- **汇总：** vendor 结果先按患者求均值；报告给出五 checkpoint seed 的均值与样本标准差。方法差值按相同 seed 配对。配对 95% 区间使用 t 分布、df=4，仅作为小样本不确定性描述。"
+      },
+      {
+        "id": "validation",
+        "type": "markdown",
+        "sourceId": "result_validation",
+        "body": "## 验证与可复核性\n\n- 从 45 个 `vendor_*.jsonl` 及对应 per-seed `vendor_*_summary.json` 独立重算；与三个聚合 JSON 的最大绝对误差为 **7.1×10⁻¹⁵**。\n- 15 个运行 manifest 的 checkpoint seed、checkpoint SHA256、目标顺序 seed 与方法间顺序 SHA256 均一致；每个 vendor 均观察到 5 个不同的 seed 顺序哈希。"
+      },
+      {
+        "id": "scheduler_validation",
+        "type": "markdown",
+        "sourceId": "pbs_status",
+        "body": "- Source、TENT、SAR 数组任务（3961278[]、3961279[]、3961280[]）及聚合任务（3961281、3961282、3961283）均已结束，PBS `Exit_status` 全部为 0。"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "body": "## 限制与不确定性\n\n- 只有 5 个 checkpoint seed；置信区间较宽，不应把小幅 Dice 差异解释为确定的算法优劣。\n- seed 2026 的 Source 本身明显较弱，并造成较大的跨 seed HD95 方差；这反映 backbone 初始化敏感性。\n- HD95 单位是处理后 256×256 网格的像素，不是毫米，不能直接做临床距离解释。\n- B/C/D 等权总体平均用于算法比较，但实际部署若患者构成不同，应按真实域权重重新汇总。\n- probe 的“前景准确率”只在真值前景像素上计分，依赖离线标签；它是诊断量，不是运行时可获得信号。"
+      },
+      {
+        "id": "recommendations",
+        "type": "markdown",
+        "body": "## 建议的下一步\n\n1. **当前 backbone 上暂不采用 TENT/SAR 作为默认策略。** 两者没有稳定提升 Dice，且显著恶化 HD95。\n2. **优先修复 SAR 的筛选判据。** 100% coverage 表明当前基于整张分割图的熵统计几乎没有拒绝任何 slice；建议改为前景候选区域或类别平衡的熵，并在执行更新前记录拒绝率。\n3. **加入边界保护或停止机制。** 在无标签条件下可监控预测连通域、面积突变、边界长度或 teacher consistency，避免低熵但边界破碎的更新。\n4. **做有针对性的消融。** 比较仅 decoder BN affine、较小学习率、按患者 reset、以及关闭/开启 batch-statistics 的组合，并保持当前 seed 配对。\n5. **先解决 backbone 稳定性。** 检查 seed 2026 的训练曲线、checkpoint 选择和分层表现；必要时增加 seed 或采用更稳定的模型选择指标。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## 后续问题\n\n- HD95 恶化是否来自少量灾难性病例，还是普遍的轻度边界散射？应查看患者级差值分布和最大退化病例。\n- LV 的 Dice 损失是否与之前计划的 Seg Head t-SNE 类边缘散射一致？\n- 若将 SAR 的熵改为前景/类别平衡熵，coverage 是否能落在可调范围，并转化为 HD95 改善？\n- 对 TENT/SAR 采用更保守的学习率或按患者 reset，是否可保留 MYO 增益而避免 LV/RV 与边界退化？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-01T14:17:33+01:00",
+    "status": "ready",
+    "datasets": {
+      "absolute_metrics": [
+        {"method":"Source","vendor":"B","dice_mean":0.779473689,"dice_std":0.025960238,"hd95_mean":24.715522667,"hd95_std":20.142244164,"dice_delta_source":0,"hd95_delta_source":0},
+        {"method":"TENT","vendor":"B","dice_mean":0.78431417,"dice_std":0.027722327,"hd95_mean":35.971573211,"hd95_std":17.183786135,"dice_delta_source":0.004840481,"hd95_delta_source":11.256050545},
+        {"method":"SAR","vendor":"B","dice_mean":0.783814618,"dice_std":0.027763556,"hd95_mean":36.246243366,"hd95_std":17.192739969,"dice_delta_source":0.004340929,"hd95_delta_source":11.530720699},
+        {"method":"Source","vendor":"C","dice_mean":0.726804831,"dice_std":0.02836349,"hd95_mean":28.074654108,"hd95_std":22.179429323,"dice_delta_source":0,"hd95_delta_source":0},
+        {"method":"TENT","vendor":"C","dice_mean":0.72456346,"dice_std":0.023417834,"hd95_mean":43.505616698,"hd95_std":12.065760425,"dice_delta_source":-0.002241371,"hd95_delta_source":15.43096259},
+        {"method":"SAR","vendor":"C","dice_mean":0.724242418,"dice_std":0.02349339,"hd95_mean":43.569621157,"hd95_std":12.105873896,"dice_delta_source":-0.002562413,"hd95_delta_source":15.494967049},
+        {"method":"Source","vendor":"D","dice_mean":0.785680396,"dice_std":0.022059623,"hd95_mean":17.109790973,"hd95_std":18.270102349,"dice_delta_source":0,"hd95_delta_source":0},
+        {"method":"TENT","vendor":"D","dice_mean":0.767404723,"dice_std":0.024659073,"hd95_mean":40.358008036,"hd95_std":14.347448422,"dice_delta_source":-0.018275673,"hd95_delta_source":23.248217063},
+        {"method":"SAR","vendor":"D","dice_mean":0.767273973,"dice_std":0.024671465,"hd95_mean":40.499547112,"hd95_std":14.333617376,"dice_delta_source":-0.018406423,"hd95_delta_source":23.389756139}
+      ],
+      "tta_deltas": [
+        {"method":"TENT","vendor":"B","dice_delta_source":0.004840481,"hd95_delta_source":11.256050545},
+        {"method":"SAR","vendor":"B","dice_delta_source":0.004340929,"hd95_delta_source":11.530720699},
+        {"method":"TENT","vendor":"C","dice_delta_source":-0.002241371,"hd95_delta_source":15.43096259},
+        {"method":"SAR","vendor":"C","dice_delta_source":-0.002562413,"hd95_delta_source":15.494967049},
+        {"method":"TENT","vendor":"D","dice_delta_source":-0.018275673,"hd95_delta_source":23.248217063},
+        {"method":"SAR","vendor":"D","dice_delta_source":-0.018406423,"hd95_delta_source":23.389756139}
+      ],
+      "class_dice_metrics": [
+        {"method":"Source","vendor":"B","rv_mean":0.816639249,"rv_std":0.021095106,"myo_mean":0.717184391,"myo_std":0.021115679,"lv_mean":0.804597427,"lv_std":0.044655422},
+        {"method":"TENT","vendor":"B","rv_mean":0.810870186,"rv_std":0.024794778,"myo_mean":0.755025369,"myo_std":0.015330997,"lv_mean":0.787046957,"lv_std":0.052249808},
+        {"method":"SAR","vendor":"B","rv_mean":0.810526103,"rv_std":0.024922589,"myo_mean":0.754599039,"myo_std":0.015385966,"lv_mean":0.786318711,"lv_std":0.05231791},
+        {"method":"Source","vendor":"C","rv_mean":0.744528974,"rv_std":0.009726066,"myo_mean":0.66036003,"myo_std":0.034135343,"lv_mean":0.775525491,"lv_std":0.045434774},
+        {"method":"TENT","vendor":"C","rv_mean":0.737918822,"rv_std":0.018325438,"myo_mean":0.687783295,"myo_std":0.018489654,"lv_mean":0.747988264,"lv_std":0.041225358},
+        {"method":"SAR","vendor":"C","rv_mean":0.737746292,"rv_std":0.018380207,"myo_mean":0.68742672,"myo_std":0.018535787,"lv_mean":0.747554242,"lv_std":0.041385616},
+        {"method":"Source","vendor":"D","rv_mean":0.798918833,"rv_std":0.019168781,"myo_mean":0.729879341,"myo_std":0.014574198,"lv_mean":0.828243015,"lv_std":0.04858211},
+        {"method":"TENT","vendor":"D","rv_mean":0.78533401,"rv_std":0.015454619,"myo_mean":0.732833371,"myo_std":0.015239982,"lv_mean":0.784046789,"lv_std":0.051057186},
+        {"method":"SAR","vendor":"D","rv_mean":0.785301444,"rv_std":0.015521683,"myo_mean":0.732701058,"myo_std":0.015240972,"lv_mean":0.783819416,"lv_std":0.051066437}
+      ],
+      "sar_probe_metrics": [
+        {"vendor":"B","stage":"First filter","coverage":1.0,"pixel_accuracy":0.992186786,"pixel_accuracy_std":0.001961172,"foreground_accuracy":0.86756948,"foreground_accuracy_std":0.004458577,"seen_slices":13210,"selected_slices":13210},
+        {"vendor":"B","stage":"Second filter","coverage":1.0,"pixel_accuracy":0.991967421,"pixel_accuracy_std":0.002011,"foreground_accuracy":0.86790969,"foreground_accuracy_std":0.004284276,"seen_slices":13210,"selected_slices":13210},
+        {"vendor":"C","stage":"First filter","coverage":1.0,"pixel_accuracy":0.991749065,"pixel_accuracy_std":0.001331815,"foreground_accuracy":0.827964321,"foreground_accuracy_std":0.005271113,"seen_slices":6070,"selected_slices":6070},
+        {"vendor":"C","stage":"Second filter","coverage":1.0,"pixel_accuracy":0.991488514,"pixel_accuracy_std":0.001388191,"foreground_accuracy":0.828617295,"foreground_accuracy_std":0.005247739,"seen_slices":6070,"selected_slices":6070},
+        {"vendor":"D","stage":"First filter","coverage":1.0,"pixel_accuracy":0.99326363,"pixel_accuracy_std":0.001231192,"foreground_accuracy":0.833973036,"foreground_accuracy_std":0.008255399,"seen_slices":6330,"selected_slices":6330},
+        {"vendor":"D","stage":"Second filter","coverage":1.0,"pixel_accuracy":0.993097683,"pixel_accuracy_std":0.001246964,"foreground_accuracy":0.834481146,"foreground_accuracy_std":0.008014343,"seen_slices":6330,"selected_slices":6330}
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "aggregate_summaries",
+      "label": "Source/TENT/SAR 5-seed aggregate summaries",
+      "path": "results/Stochastic_Ini"
+    },
+    {
+      "id": "sar_probe",
+      "label": "SAR entropy-label probe summary",
+      "path": "results/Stochastic_Ini/sar/sar_5seed_summary.json"
+    },
+    {
+      "id": "result_validation",
+      "label": "Per-seed result files and run manifests",
+      "path": "results/Stochastic_Ini"
+    },
+    {
+      "id": "pbs_status",
+      "label": "PBS Pro completed job records"
+    }
+  ]
+}

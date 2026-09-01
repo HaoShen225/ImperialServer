@@ -1,0 +1,661 @@
+{
+  "fisher_sha256": null,
+  "initialization_profile": "stochastic",
+  "method": "source",
+  "protocol_sha256": "e9a16a65253161c9dfab28d6e03917f7900aea4e7867e5f2857043a7c570aac7",
+  "resolved_config": {
+    "data": {
+      "image_size": [
+        256,
+        256
+      ],
+      "num_workers": 0,
+      "patients_manifest": "data/manifests/patients.csv",
+      "protocol_file": "data/splits/mms_vendor_a_to_bcd_tta.json",
+      "root": "data",
+      "slices_manifest": "data/manifests/slices.csv",
+      "source_split_file": "splits/vendor_a_split.json",
+      "source_vendor": "A",
+      "stream_file": "splits/target_streams.json",
+      "volumes_manifest": "data/manifests/volumes.csv"
+    },
+    "evaluation": {
+      "absent_class": "finite_diagonal_penalty",
+      "bootstrap_resamples": 10000,
+      "bootstrap_seed": 42,
+      "class_names": {
+        "1": "rv",
+        "2": "myo",
+        "3": "lv"
+      },
+      "classes": [
+        1,
+        2,
+        3
+      ],
+      "grid": "processed_256",
+      "metrics": [
+        "dice",
+        "hd95_px"
+      ]
+    },
+    "experiment": {
+      "harness_seed": 3101,
+      "initialization_profile": "stochastic",
+      "source_seeds": [
+        2022,
+        2023,
+        2024,
+        2025,
+        2026
+      ],
+      "target_vendors": [
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "methods": {
+      "cotta": {
+        "augmentation_scales": [
+          0.5,
+          0.75,
+          1.0,
+          1.25,
+          1.5,
+          1.75
+        ],
+        "bn_policy": "batch_no_running",
+        "confidence_gate": 0.9,
+        "head_lr_multiplier": 10.0,
+        "horizontal_flip_probability": 0.5,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "restore_probability": 0.01,
+        "steps": 1,
+        "teacher_momentum": 0.999,
+        "update_scope": "all",
+        "weight_decay": 0.0005
+      },
+      "deyo": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.5,
+        "entropy_weight_margin_factor": 0.4,
+        "foreground_only": true,
+        "lr": 3.125e-05,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "patch_grid": 4,
+        "plpd_threshold": 0.2,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "eata": {
+        "bn_policy": "batch_no_running",
+        "descriptor": "spatial_mean_class_probability",
+        "entropy_margin_factor": 0.4,
+        "fisher_alpha": 2000.0,
+        "fisher_path": null,
+        "fisher_samples": 2000,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "redundancy_margin": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "roid": {
+        "bn_policy": "batch_no_running",
+        "consistency": true,
+        "lr": 0.00025,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "prior_correction": false,
+        "probability_momentum": 0.9,
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "source_weight_momentum": 0.99,
+        "steps": 1,
+        "temperature": 0.3333333333333333,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      },
+      "rotta": {
+        "beta": 0.9,
+        "lambda_timeliness": 1.0,
+        "lambda_uncertainty": 1.0,
+        "lr": 0.001,
+        "memory_capacity": 64,
+        "memory_category_key": "dominant_foreground_or_empty",
+        "method_seed": 4101,
+        "optimizer": "adam",
+        "profile_kind": "seg_mod",
+        "profile_verified": true,
+        "rbn_alpha": 0.05,
+        "steps": 1,
+        "teacher_nu": 0.001,
+        "update_frequency": 64,
+        "update_scope": "rbn_affine",
+        "weight_decay": 0.0
+      },
+      "sar": {
+        "bn_policy": "batch_no_running",
+        "entropy_margin_factor": 0.4,
+        "lr": 0.001,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd_sam",
+        "profile_kind": "official_mechanism_custom_lr",
+        "profile_verified": true,
+        "recovery_ema": 0.9,
+        "recovery_threshold": 0.2,
+        "rho": 0.05,
+        "steps": 1,
+        "update_scope": "bn_affine_except_encoder_layer4",
+        "weight_decay": 0.0
+      },
+      "source": {
+        "method_seed": 4101,
+        "profile_kind": "official",
+        "profile_verified": true
+      },
+      "tent": {
+        "bn_policy": "batch_no_running",
+        "lr": 0.001,
+        "method_seed": 4101,
+        "momentum": 0.9,
+        "optimizer": "sgd",
+        "profile_kind": "official_segmentation",
+        "profile_verified": true,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "weight_decay": 0.0
+      }
+    },
+    "model": {
+      "decoder_norm": "batch_norm",
+      "encoder_norm": "batch_norm",
+      "in_channels": 1,
+      "name": "resunet34",
+      "num_classes": 4,
+      "pretrained_encoder": false
+    },
+    "source": {
+      "batch_size": 8,
+      "checkpoint_dir": "checkpoints/Stochastic_Ini",
+      "decoder_lr": 0.0003,
+      "dice_epsilon": 1e-06,
+      "early_stopping_patience": 30,
+      "encoder_lr": 0.0001,
+      "epochs": 200,
+      "min_lr": 1e-06,
+      "optimizer": "adamw",
+      "scheduler": "cosine",
+      "smoke": {
+        "batch_size": 2,
+        "epochs": 1,
+        "max_train_batches": 2,
+        "max_val_volumes": 1
+      },
+      "warmup_epochs": 5,
+      "weight_decay": 0.0001
+    },
+    "tta": {
+      "batch_size": 4,
+      "deterministic": true,
+      "precision": "fp32",
+      "reset": "vendor",
+      "results_dir": "results/Stochastic_Ini",
+      "timing": "adapt_then_predict"
+    }
+  },
+  "resolved_method_config": {
+    "method_seed": 4101,
+    "profile_kind": "official",
+    "profile_verified": true
+  },
+  "runtime": {
+    "cuda_runtime": "11.8",
+    "device_count": 1,
+    "git_commit": "ce96fe54015de27658665eb29e59da4a546ebb76",
+    "numpy": "2.4.4",
+    "python": "3.11.15",
+    "torch": "2.7.1+cu118"
+  },
+  "source_checkpoint_sha256": "160ad79525636e9286f88ff10f1dca999284eaf6750ad1214676dffd5c22944c",
+  "source_seed": 2023,
+  "summaries": {
+    "B": {
+      "dice_lv": {
+        "ci95_high": 0.8198956509690137,
+        "ci95_low": 0.7952131378399401,
+        "mean": 0.8076715428418955,
+        "n_patients": 125
+      },
+      "dice_macro": {
+        "ci95_high": 0.7985857888789616,
+        "ci95_low": 0.7763396643750525,
+        "mean": 0.7879275955296259,
+        "n_patients": 125
+      },
+      "dice_myo": {
+        "ci95_high": 0.7326496566810685,
+        "ci95_low": 0.7058822285584148,
+        "mean": 0.7195872596825941,
+        "n_patients": 125
+      },
+      "dice_rv": {
+        "ci95_high": 0.8501640084538339,
+        "ci95_low": 0.820954720538377,
+        "mean": 0.8365239840643877,
+        "n_patients": 125
+      },
+      "hd95_px_lv": {
+        "ci95_high": 52.02503314229181,
+        "ci95_low": 35.920376399198275,
+        "mean": 43.85531888817449,
+        "n_patients": 125
+      },
+      "hd95_px_macro": {
+        "ci95_high": 24.944888132978964,
+        "ci95_low": 16.752838709325747,
+        "mean": 20.759049918529442,
+        "n_patients": 125
+      },
+      "hd95_px_myo": {
+        "ci95_high": 20.328981314684277,
+        "ci95_low": 9.777088689485163,
+        "mean": 14.80919334464135,
+        "n_patients": 125
+      },
+      "hd95_px_rv": {
+        "ci95_high": 5.596564099768906,
+        "ci95_low": 2.11015161250038,
+        "mean": 3.612637522772479,
+        "n_patients": 125
+      }
+    },
+    "C": {
+      "dice_lv": {
+        "ci95_high": 0.8028932512180417,
+        "ci95_low": 0.7555038128934176,
+        "mean": 0.7801471911144603,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.7656940077705471,
+        "ci95_low": 0.7008086416517022,
+        "mean": 0.7355999352426116,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7056387233734617,
+        "ci95_low": 0.6424618479134119,
+        "mean": 0.6764972542586156,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.8008019195878102,
+        "ci95_low": 0.6904277039303843,
+        "mean": 0.7501553603547593,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 35.2256356554276,
+        "ci95_low": 15.148019009924045,
+        "mean": 24.447841255647646,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 19.99453411952883,
+        "ci95_low": 9.769920590226407,
+        "mean": 14.6006121432327,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 19.626999166278555,
+        "ci95_low": 6.735345344209023,
+        "mean": 12.669087537577195,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 11.280588269227703,
+        "ci95_low": 3.3814771838403224,
+        "mean": 6.6849076364732545,
+        "n_patients": 50
+      }
+    },
+    "D": {
+      "dice_lv": {
+        "ci95_high": 0.8586358333685442,
+        "ci95_low": 0.8142857427965879,
+        "mean": 0.8374037131493374,
+        "n_patients": 50
+      },
+      "dice_macro": {
+        "ci95_high": 0.8068163187096399,
+        "ci95_low": 0.7725914483035771,
+        "mean": 0.7908065367460279,
+        "n_patients": 50
+      },
+      "dice_myo": {
+        "ci95_high": 0.7398794042823801,
+        "ci95_low": 0.7090396419667679,
+        "mean": 0.7246052980904808,
+        "n_patients": 50
+      },
+      "dice_rv": {
+        "ci95_high": 0.8333129463856247,
+        "ci95_low": 0.7844625306996578,
+        "mean": 0.8104105989982652,
+        "n_patients": 50
+      },
+      "hd95_px_lv": {
+        "ci95_high": 44.777976159677735,
+        "ci95_low": 18.346299943424736,
+        "mean": 31.08153550511409,
+        "n_patients": 50
+      },
+      "hd95_px_macro": {
+        "ci95_high": 18.6121288470172,
+        "ci95_low": 8.585504183984645,
+        "mean": 13.380428029499619,
+        "n_patients": 50
+      },
+      "hd95_px_myo": {
+        "ci95_high": 10.260265462195578,
+        "ci95_low": 2.2016971634851026,
+        "mean": 5.457124291779644,
+        "n_patients": 50
+      },
+      "hd95_px_rv": {
+        "ci95_high": 6.130830430691903,
+        "ci95_low": 1.891354600306653,
+        "mean": 3.6026242916051308,
+        "n_patients": 50
+      }
+    }
+  },
+  "target_order_policy": {
+    "phase_order": [
+      "ED",
+      "ES"
+    ],
+    "shuffle": true,
+    "shuffle_scope": "within_vendor",
+    "shuffle_seed_source": "source_checkpoint_seed",
+    "shuffle_unit": "patient",
+    "vendor_order": [
+      "B",
+      "C",
+      "D"
+    ],
+    "within_volume_order": "z_index_ascending"
+  },
+  "target_order_seed": 2023,
+  "target_orders": {
+    "B": {
+      "order_seed": 2023,
+      "patient_ids": [
+        "C2L5P7",
+        "B4E1K1",
+        "H1W2Y1",
+        "E6J4N8",
+        "K9N0W0",
+        "I6N3P3",
+        "C0S7W0",
+        "B2F4K5",
+        "G0H4J3",
+        "G1N6S7",
+        "L5Q6T7",
+        "O3R8Y5",
+        "E4M2Q7",
+        "P8W4Z0",
+        "H6I0I6",
+        "D6E9U8",
+        "D6H6O2",
+        "K2S1U6",
+        "E4O8P3",
+        "H1J5W8",
+        "N9P5Z0",
+        "E9L1W5",
+        "I6T4W8",
+        "G7N8R7",
+        "J9L4S2",
+        "E1L8Y4",
+        "E5E6O8",
+        "A5D0G0",
+        "F8N2S1",
+        "E4I9O7",
+        "C8I7P7",
+        "A1D0Q7",
+        "A7G0P5",
+        "G2J1M5",
+        "A1O8Z3",
+        "A5E0T8",
+        "D1L4Q9",
+        "D1R0Y5",
+        "E4W8Z7",
+        "H7N4V9",
+        "A9C5P4",
+        "C3I2K3",
+        "K7L2Y6",
+        "I2K2Y8",
+        "B6D0U7",
+        "A7E4J0",
+        "G2O2S6",
+        "E5F5V7",
+        "E3T0Z2",
+        "G2M7W4",
+        "B2D9O2",
+        "H7I4J3",
+        "F1F3I6",
+        "L8N7Z0",
+        "C1G5Q0",
+        "A5C2D2",
+        "B0N3W8",
+        "G8N2U5",
+        "G7Q2W0",
+        "L7Y7Z2",
+        "I7W4Y8",
+        "D9I8O7",
+        "C4R8T7",
+        "P6U0Y0",
+        "C2M6P8",
+        "C4S8W9",
+        "B5T6V0",
+        "B3S2Z4",
+        "J9L6N9",
+        "Q3Q6R8",
+        "P9S7W2",
+        "A9J8W7",
+        "H4I2T8",
+        "N1P8Q9",
+        "G4L8Z7",
+        "A8E1F4",
+        "B9O1Q0",
+        "P3R6Y5",
+        "N7V9W9",
+        "A3B7E5",
+        "F4K3S1",
+        "E9H2K7",
+        "H7K5U5",
+        "A6M1Q7",
+        "J4J9W6",
+        "F5I9Q2",
+        "O9V8W5",
+        "M4T4V6",
+        "Q7V1Y5",
+        "F0J2R8",
+        "B1G9J3",
+        "B4S1Y2",
+        "A4A8V9",
+        "I0I2J8",
+        "A9J5Q7",
+        "H0K3Q4",
+        "A6J0Y2",
+        "D8O0W2",
+        "B5L5Y4",
+        "A2H5K9",
+        "O4T6Y7",
+        "L1Q1Z5",
+        "B7F5P0",
+        "B3D0N1",
+        "M6V2Y0",
+        "G0I6P3",
+        "I0J5U3",
+        "G1K1V3",
+        "W5Z4Z8",
+        "M0P8U8",
+        "C7L8Z8",
+        "H3U1Y1",
+        "A9E3G9",
+        "K5K6N1",
+        "A8C9U8",
+        "H1M5Y6",
+        "D3Q0W9",
+        "G3M5S4",
+        "G9L0O9",
+        "D0H9I4",
+        "Y6Y9Z2",
+        "M4P7Q6",
+        "E5S7W7",
+        "H8K2K7",
+        "E3L8U8"
+      ],
+      "target_order_sha256": "5dc10add8d922abead6023ffe55458927a17c76455ba20ef2db012a33224fd5e"
+    },
+    "C": {
+      "order_seed": 2023,
+      "patient_ids": [
+        "E9V9Z2",
+        "P3T5U1",
+        "R1R6Y8",
+        "D1H2O9",
+        "B0L3Y2",
+        "H3R6S9",
+        "F1K2S9",
+        "D7T3V8",
+        "A9F3T5",
+        "C7M6W0",
+        "R2R7Z5",
+        "A3H5R1",
+        "D2U0V0",
+        "R8V0Y4",
+        "C0N8P4",
+        "G8R0Z9",
+        "R6V5W3",
+        "D6N7Q8",
+        "C8J7L5",
+        "D7M8P9",
+        "Q1Q3T1",
+        "D5G3W8",
+        "F5I1Z8",
+        "H7L8R8",
+        "H7P5Z4",
+        "E7L0N6",
+        "A9L7Y7",
+        "J6K4V3",
+        "A8C5E9",
+        "I4R8V6",
+        "O4O6U5",
+        "A5H1Q2",
+        "K7O3Q0",
+        "D3K5Q2",
+        "C8O0P2",
+        "L2V5Z0",
+        "I6P4R0",
+        "I8Z0Z6",
+        "E3F2U7",
+        "B8P5Q9",
+        "B2L0L2",
+        "M6M9N1",
+        "E6M6P2",
+        "K3R0Y7",
+        "L8N7P0",
+        "E3F5U2",
+        "V4W8Z5",
+        "H2M9S1",
+        "Q5V8W3",
+        "F0I6U8"
+      ],
+      "target_order_sha256": "9643afbf1fcd025014d5cb18e3985d7e4667bae3e05c24c247bddf8e6b02bdda"
+    },
+    "D": {
+      "order_seed": 2023,
+      "patient_ids": [
+        "F9M1R2",
+        "N7W6Z8",
+        "O7Q7U3",
+        "B9G4U2",
+        "A5P5W0",
+        "I4L4V7",
+        "G4I7V2",
+        "E1L7M3",
+        "A4K8R4",
+        "A7F4G2",
+        "P8V0Y7",
+        "A1K2P5",
+        "C0L7V1",
+        "R3V5W7",
+        "A6B7Y4",
+        "G8L0Z0",
+        "Q4W5Z8",
+        "D1S5T8",
+        "B3E2W8",
+        "E0J2Z9",
+        "N9Q4T8",
+        "D1L6T4",
+        "G8K0M3",
+        "I8N8Y1",
+        "J6M5O2",
+        "F6J9L9",
+        "A4R4T0",
+        "K7N0R7",
+        "A4B9O6",
+        "K3P3Y6",
+        "N7P3T8",
+        "A3P9V7",
+        "L6T2T5",
+        "C5L0R0",
+        "B6I0T4",
+        "L8M2U8",
+        "K5L4S1",
+        "K5M7V5",
+        "E4H7L4",
+        "A6A8H0",
+        "A5Q1W8",
+        "N2O7U5",
+        "E6H0V9",
+        "L5U7Y4",
+        "M2P5T8",
+        "E5J6L2",
+        "T2Z1Z9",
+        "H6P7T1",
+        "O5U2U7",
+        "G1J5K3"
+      ],
+      "target_order_sha256": "b61fb74719de8908b3f3aa78fe4881daeca809606659fce30b2e4d6962e248bb"
+    }
+  },
+  "target_stream_sha256": "f900e8047d9edc2e95fc177724bfe9041f46231bcf96d06541d983272c8455b6",
+  "vendors": [
+    "B",
+    "C",
+    "D"
+  ]
+}

@@ -25,6 +25,13 @@ TARGET_ORDER_POLICY = {
     "within_volume_order": "z_index_ascending",
 }
 
+TARGET_SLICE_ORDER_POLICY = {
+    "shuffle": True,
+    "shuffle_unit": "slice",
+    "shuffle_scope": "within_vendor",
+    "shuffle_seed_source": "source_checkpoint_seed",
+}
+
 
 def _read_json(path: str | Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -145,6 +152,47 @@ class MMSTargetVolumeDataset(Dataset):
         return torch.from_numpy(np.stack(masks).astype(np.int64, copy=False))
 
 
+class MMSTargetSliceDataset(Dataset):
+    """Image-only target slices in one pre-resolved, auditable arrival order."""
+
+    def __init__(
+        self,
+        records: Sequence[dict[str, Any]],
+        data_root: str | Path,
+        *,
+        vendor: str,
+        order_seed: int,
+        slice_order_sha256: str,
+    ):
+        self.records = list(records)
+        self.data_root = Path(data_root)
+        self.vendor = vendor
+        self.order_seed = int(order_seed)
+        self.slice_order = [str(record["slice_id"]) for record in self.records]
+        self.slice_order_sha256 = slice_order_sha256
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        row = self.records[index]
+        image = np.load(self.data_root / row["image"], allow_pickle=False)
+        return {
+            "image": torch.from_numpy(image).float().unsqueeze(0),
+            "mask_path": row["mask"],
+            "slice_id": row["slice_id"],
+            "patient_id": row["patient_id"],
+            "phase": row["phase"],
+            "vendor": row["vendor"],
+            "z_index": int(row["z_index"]),
+            "slice_arrival_index": int(row["slice_arrival_index"]),
+        }
+
+    def load_masks(self, mask_paths: Sequence[str]) -> torch.Tensor:
+        masks = [np.load(self.data_root / path, allow_pickle=False) for path in mask_paths]
+        return torch.from_numpy(np.stack(masks).astype(np.int64, copy=False))
+
+
 def _volume_index(cfg: dict[str, Any]) -> dict[tuple[str, str, str], list[dict[str, str]]]:
     grouped: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in _read_csv(cfg["data"]["slices_manifest"]):
@@ -163,6 +211,88 @@ def target_order_sha256(vendor: str, order_seed: int, patient_ids: Sequence[str]
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def slice_order_sha256(vendor: str, order_seed: int, slice_ids: Sequence[str]) -> str:
+    """Hash one resolved vendor-local slice order for result provenance."""
+    payload = {
+        "vendor": vendor,
+        "order_seed": int(order_seed),
+        "slice_ids": list(slice_ids),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def build_target_slice_loader(
+    vendor: str,
+    cfg: dict[str, Any],
+    order_seed: int,
+    batch_size: int | None = None,
+) -> DataLoader:
+    """Build a deterministic Vendor-local stream of globally shuffled target slices."""
+    if isinstance(order_seed, bool) or not isinstance(order_seed, Integral):
+        raise TypeError("order_seed must be an integer checkpoint seed")
+    resolved_order_seed = int(order_seed)
+    stream_cfg = _read_json(cfg["data"]["slice_stream_file"])
+    if vendor not in stream_cfg["target_vendors"]:
+        raise ValueError(f"Vendor {vendor!r} is not in the target slice stream")
+    for key, expected in TARGET_SLICE_ORDER_POLICY.items():
+        if stream_cfg.get(key) != expected:
+            raise ValueError(
+                f"Target slice stream policy mismatch for {key}: "
+                f"expected {expected!r}, got {stream_cfg.get(key)!r}"
+            )
+
+    protocol = load_protocol(cfg)
+    patient_ids = set(protocol["targets"][vendor]["patient_ids"])
+    excluded_parts = set(stream_cfg.get("excluded_original_parts", []))
+    records = [
+        dict(row)
+        for row in _read_csv(cfg["data"]["slices_manifest"])
+        if row["vendor"] == vendor
+        and row["patient_id"] in patient_ids
+        and row["original_part"] not in excluded_parts
+    ]
+    observed_patients = {row["patient_id"] for row in records}
+    if observed_patients != patient_ids:
+        missing = sorted(patient_ids - observed_patients)
+        unexpected = sorted(observed_patients - patient_ids)
+        raise ValueError(
+            f"Target slice patient mismatch for Vendor {vendor}: "
+            f"missing={missing}, unexpected={unexpected}"
+        )
+    records.sort(
+        key=lambda row: (
+            row["patient_id"],
+            0 if row["phase"] == "ED" else 1,
+            int(row["z_index"]),
+        )
+    )
+    for row in records:
+        row["slice_id"] = (
+            f"{vendor}/{row['patient_id']}/{row['phase']}/z{int(row['z_index']):03d}"
+        )
+    random.Random(resolved_order_seed).shuffle(records)
+    for arrival_index, row in enumerate(records):
+        row["slice_arrival_index"] = arrival_index
+    order_hash = slice_order_sha256(
+        vendor, resolved_order_seed, [row["slice_id"] for row in records]
+    )
+    dataset = MMSTargetSliceDataset(
+        records,
+        cfg["data"]["root"],
+        vendor=vendor,
+        order_seed=resolved_order_seed,
+        slice_order_sha256=order_hash,
+    )
+    return DataLoader(
+        dataset,
+        batch_size=batch_size or int(cfg["tta"]["batch_size"]),
+        shuffle=False,
+        num_workers=int(cfg["data"]["num_workers"]),
+        pin_memory=False,
+    )
 
 
 def build_target_stream(

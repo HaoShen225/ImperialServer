@@ -67,6 +67,10 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         raise ValueError("This locked profile supports only processed_256 evaluation")
     if cfg["evaluation"]["metrics"] != ["dice", "hd95_px"]:
         raise ValueError("Locked metrics must be exactly [dice, hd95_px]")
+    if cfg["tta"].get("stream_mode", "patient_volume") not in {
+        "patient_volume", "slice_random"
+    }:
+        raise ValueError("Unknown target stream mode")
     if cfg["tta"]["timing"] not in {"adapt_then_predict", "predict_then_adapt"}:
         raise ValueError("Unknown TTA timing")
     if cfg["tta"]["reset"] not in {"patient", "vendor", "never"}:

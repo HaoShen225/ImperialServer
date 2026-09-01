@@ -9,6 +9,7 @@ data:
   protocol_file: data/splits/mms_vendor_a_to_bcd_tta.json
   source_split_file: splits/vendor_a_split.json
   stream_file: splits/target_streams.json
+  slice_stream_file: splits/target_slice_streams.json
   patients_manifest: data/manifests/patients.csv
   volumes_manifest: data/manifests/volumes.csv
   slices_manifest: data/manifests/slices.csv
@@ -53,6 +54,7 @@ evaluation:
   bootstrap_seed: 42
 
 tta:
+  stream_mode: patient_volume
   batch_size: 4
   timing: adapt_then_predict
   reset: vendor

@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from data import TARGET_ORDER_POLICY, build_target_stream
+from data import (
+    TARGET_ORDER_POLICY,
+    TARGET_SLICE_ORDER_POLICY,
+    MMSTargetSliceDataset,
+    build_target_slice_loader,
+    build_target_stream,
+)
 
 
 def validate_target_order(
@@ -79,3 +85,70 @@ def require_distinct_seed_orders(
         hashes = [order_hashes[int(seed)][vendor] for seed in seeds]
         if len(set(hashes)) != len(hashes):
             raise RuntimeError(f"Vendor {vendor} does not have one distinct order per seed")
+
+
+def validate_target_slice_order(
+    manifest: dict[str, Any],
+    records: Sequence[dict[str, Any]],
+    cfg: dict[str, Any],
+    vendor: str,
+    checkpoint_seed: int,
+) -> str:
+    """Rebuild and exactly validate one Vendor-local random slice stream."""
+    seed = int(checkpoint_seed)
+    loader = build_target_slice_loader(vendor, cfg, order_seed=seed)
+    expected = loader.dataset
+    if not isinstance(expected, MMSTargetSliceDataset):
+        raise TypeError("Target slice loader has an unexpected dataset type")
+    expected_policy = {
+        **TARGET_SLICE_ORDER_POLICY,
+        "vendor_order": list(manifest["vendors"]),
+    }
+    if manifest.get("stream_mode") != "slice_random":
+        raise RuntimeError("Manifest is not a slice_random run")
+    if int(manifest.get("source_seed", -1)) != seed:
+        raise RuntimeError(f"Manifest source seed does not match checkpoint seed {seed}")
+    if int(manifest.get("target_order_seed", -1)) != seed:
+        raise RuntimeError(f"Manifest target order seed does not match checkpoint seed {seed}")
+    if manifest.get("target_order_policy") != expected_policy:
+        raise RuntimeError("Manifest target slice order policy differs from the locked policy")
+
+    expected_manifest_order = {
+        "order_seed": seed,
+        "n_slices": len(expected),
+        "slice_order_sha256": expected.slice_order_sha256,
+    }
+    if manifest.get("target_orders", {}).get(vendor) != expected_manifest_order:
+        raise RuntimeError(f"Manifest target slice order is invalid for Vendor {vendor}, seed {seed}")
+    if len(records) != len(expected):
+        raise RuntimeError(
+            f"Vendor {vendor}, seed {seed} has {len(records)} slice records; "
+            f"expected {len(expected)}"
+        )
+    for arrival_index, (record, expected_row) in enumerate(zip(records, expected.records)):
+        actual = (
+            record.get("vendor"),
+            record.get("patient_id"),
+            record.get("phase"),
+            record.get("z_index"),
+            record.get("slice_id"),
+            record.get("slice_arrival_index"),
+            record.get("target_order_seed"),
+            record.get("slice_order_sha256"),
+        )
+        wanted = (
+            vendor,
+            expected_row["patient_id"],
+            expected_row["phase"],
+            int(expected_row["z_index"]),
+            expected_row["slice_id"],
+            arrival_index,
+            seed,
+            expected.slice_order_sha256,
+        )
+        if actual != wanted:
+            raise RuntimeError(
+                f"Target slice arrival sequence mismatch for Vendor {vendor}, seed {seed}, "
+                f"slice index {arrival_index}"
+            )
+    return str(expected.slice_order_sha256)

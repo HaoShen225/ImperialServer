@@ -3,12 +3,19 @@ from __future__ import annotations
 import inspect
 from copy import deepcopy
 
+import numpy as np
 import torch
+from torch.utils.data import DataLoader
+
+import run_tta as run_tta_module
+from data import MMSTargetSliceDataset, slice_order_sha256
 
 from run_tta import (
     _probe_stage_counts,
     _validate_evaluation_target,
     attach_entropy_label_probe,
+    run_random_slice_batch,
+    run_slice_experiment,
     run_volume,
 )
 from tta_methods import build_method
@@ -16,6 +23,101 @@ from tta_methods import build_method
 
 def test_run_volume_signature_has_no_label_boundary():
     assert list(inspect.signature(run_volume).parameters) == ["method", "images", "batch_size", "device"]
+
+
+def test_run_random_slice_batch_signature_has_no_label_boundary():
+    assert list(inspect.signature(run_random_slice_batch).parameters) == [
+        "method", "images", "device"
+    ]
+
+
+@__import__("pytest").mark.parametrize("method_name", ["source", "tent", "sar"])
+def test_random_slice_batch_smoke_for_core_methods(
+    config, tiny_model, images, method_name
+):
+    method_cfg = deepcopy(config["methods"][method_name])
+    method = build_method(
+        method_name,
+        deepcopy(tiny_model),
+        method_cfg,
+        config["tta"],
+        torch.device("cpu"),
+    )
+    prediction, adaptation, probe = run_random_slice_batch(
+        method, images, torch.device("cpu")
+    )
+    assert prediction.shape == images.shape[:1] + images.shape[-2:]
+    assert adaptation["arrival_batch_size"] == images.shape[0]
+    assert "predicted_foreground_area" in adaptation
+    if method_name == "sar":
+        assert probe is not None
+
+
+def test_slice_experiment_writes_slice_and_batch_results(
+    config, tiny_model, tmp_path, monkeypatch
+):
+    cfg = deepcopy(config)
+    cfg["tta"]["stream_mode"] = "slice_random"
+    cfg["tta"]["results_dir"] = str(tmp_path / "results")
+    cfg["evaluation"]["bootstrap_resamples"] = 20
+    data_root = tmp_path / "arrays"
+    data_root.mkdir()
+    rows = []
+    for index in range(4):
+        image = np.full((16, 16), index / 4.0, dtype=np.float32)
+        mask = np.zeros((16, 16), dtype=np.uint8)
+        mask[1:4, 1:4] = 1
+        mask[5:8, 5:8] = 2
+        mask[9:12, 9:12] = 3
+        image_name, mask_name = f"image_{index}.npy", f"mask_{index}.npy"
+        np.save(data_root / image_name, image)
+        np.save(data_root / mask_name, mask)
+        rows.append({
+            "image": image_name,
+            "mask": mask_name,
+            "slice_id": f"B/p{index}/ED/z000",
+            "patient_id": f"p{index}",
+            "phase": "ED",
+            "vendor": "B",
+            "z_index": 0,
+            "slice_arrival_index": index,
+        })
+    order_hash = slice_order_sha256("B", 2022, [row["slice_id"] for row in rows])
+    dataset = MMSTargetSliceDataset(
+        rows,
+        data_root,
+        vendor="B",
+        order_seed=2022,
+        slice_order_sha256=order_hash,
+    )
+    loader = DataLoader(dataset, batch_size=4, shuffle=False)
+    method_cfg = deepcopy(cfg["methods"]["source"])
+    method = build_method(
+        "source", deepcopy(tiny_model), method_cfg, cfg["tta"], torch.device("cpu")
+    )
+    checkpoint = tmp_path / "source.pt"
+    checkpoint.write_bytes(b"test-checkpoint")
+    monkeypatch.setattr(
+        run_tta_module,
+        "_prepare_experiment",
+        lambda *_args, **_kwargs: (method, method_cfg, checkpoint, "stochastic", None),
+    )
+    monkeypatch.setattr(
+        run_tta_module,
+        "build_target_slice_loader",
+        lambda *_args, **_kwargs: loader,
+    )
+
+    manifest = run_slice_experiment(
+        cfg, "source", 2022, ["B"], torch.device("cpu")
+    )
+    root = tmp_path / "results" / "source" / "seed2022" / "slice_random_adapt_then_predict_vendor"
+    assert manifest["stream_mode"] == "slice_random"
+    assert manifest["target_orders"]["B"]["n_slices"] == 4
+    assert len((root / "vendor_B.jsonl").read_text().splitlines()) == 4
+    assert len((root / "vendor_B_batches.jsonl").read_text().splitlines()) == 1
+    assert (root / "vendor_B_summary.json").is_file()
+    assert (root / "run_manifest.json").is_file()
 
 
 def test_target_label_permutation_cannot_change_prediction(config, tiny_model, images):

@@ -1,4 +1,4 @@
-"""Run the locked image-only TTA protocol and evaluate after each volume."""
+"""Run locked image-only volume or random-slice TTA evaluation protocols."""
 
 from __future__ import annotations
 
@@ -11,8 +11,21 @@ from typing import Any
 import numpy as np
 import torch
 
-from data import TARGET_ORDER_POLICY, build_target_stream, split_volume_into_batches
-from metrics import aggregate_results, evaluate_volume
+from data import (
+    TARGET_ORDER_POLICY,
+    TARGET_SLICE_ORDER_POLICY,
+    MMSTargetSliceDataset,
+    build_target_slice_loader,
+    build_target_stream,
+    split_volume_into_batches,
+)
+from metrics import (
+    SLICE_METRIC_POLICY,
+    aggregate_results,
+    aggregate_slice_results,
+    evaluate_slice,
+    evaluate_volume,
+)
 from model import build_model, load_source_checkpoint
 from tta_methods import METHODS, BaseTTA, build_method
 from tta_methods.common import predicted_foreground_area
@@ -44,6 +57,26 @@ def run_volume(
             }
         records.append(record)
     return torch.cat(predictions), records
+
+
+def run_random_slice_batch(
+    method: BaseTTA,
+    images: torch.Tensor,
+    device: torch.device,
+) -> tuple[torch.Tensor, dict[str, Any], dict[str, dict[str, torch.Tensor]] | None]:
+    """Adapt and predict one image-only random-slice batch without label access."""
+    device_batch = images.to(device)
+    logits, info = method.process_batch(device_batch)
+    record = info.to_dict()
+    record["arrival_batch_size"] = int(images.shape[0])
+    record["predicted_foreground_area"] = predicted_foreground_area(logits)
+    payload = None
+    if info.probe_payload is not None:
+        payload = {
+            stage: {key: value.detach().cpu() for key, value in stage_payload.items()}
+            for stage, stage_payload in info.probe_payload.items()
+        }
+    return logits.argmax(dim=1).cpu(), record, payload
 
 
 def _probe_stage_counts(
@@ -165,27 +198,12 @@ def _method_config(cfg: dict[str, Any], method_name: str, source_seed: int) -> d
     return method_cfg
 
 
-def _validate_evaluation_target(
-    target: torch.Tensor,
-    classes: list[int],
-    vendor: str,
-    patient_id: str,
-    phase: str,
-) -> None:
-    if not any(bool(torch.any(target == class_id)) for class_id in classes):
-        raise ValueError(
-            "Evaluation target has no configured foreground labels: "
-            f"{vendor}/{patient_id}/{phase}"
-        )
-
-
-def run_experiment(
+def _prepare_experiment(
     cfg: dict[str, Any],
     method_name: str,
     source_seed: int,
-    vendors: list[str],
     device: torch.device,
-) -> dict[str, Any]:
+) -> tuple[BaseTTA, dict[str, Any], Path, str, str | None]:
     set_seed(int(cfg["experiment"]["harness_seed"]), deterministic=bool(cfg["tta"]["deterministic"]))
     checkpoint = Path(cfg["source"]["checkpoint_dir"]) / f"seed{source_seed}_best.pt"
     if not checkpoint.is_file():
@@ -206,11 +224,194 @@ def run_experiment(
         )
     method_cfg = _method_config(cfg, method_name, source_seed)
     method = build_method(method_name, model, method_cfg, cfg["tta"], device)
+    fisher_hash = file_sha256(method_cfg["fisher_path"]) if method_name == "eata" else None
+    return method, method_cfg, checkpoint, expected_initialization, fisher_hash
+
+
+def _validate_evaluation_target(
+    target: torch.Tensor,
+    classes: list[int],
+    vendor: str,
+    patient_id: str,
+    phase: str,
+) -> None:
+    if not any(bool(torch.any(target == class_id)) for class_id in classes):
+        raise ValueError(
+            "Evaluation target has no configured foreground labels: "
+            f"{vendor}/{patient_id}/{phase}"
+        )
+
+
+def run_slice_experiment(
+    cfg: dict[str, Any],
+    method_name: str,
+    source_seed: int,
+    vendors: list[str],
+    device: torch.device,
+) -> dict[str, Any]:
+    """Run Vendor-local random slice streams and emit slice-level scores."""
+    if cfg["tta"]["reset"] == "patient":
+        raise ValueError("slice_random does not support patient reset because batches mix patients")
+    method, method_cfg, checkpoint, initialization_profile, fisher_hash = _prepare_experiment(
+        cfg, method_name, source_seed, device
+    )
+    protocol_hash = file_sha256(cfg["data"]["protocol_file"])
+    stream_hash = file_sha256(cfg["data"]["slice_stream_file"])
+    checkpoint_hash = file_sha256(checkpoint)
+    result_root = (
+        Path(cfg["tta"]["results_dir"])
+        / method_name
+        / f"seed{source_seed}"
+        / f"slice_random_{cfg['tta']['timing']}_{cfg['tta']['reset']}"
+    )
+    summaries: dict[str, Any] = {}
+    target_orders: dict[str, Any] = {}
+    class_names = {int(key): value for key, value in cfg["evaluation"]["class_names"].items()}
+    classes = [int(value) for value in cfg["evaluation"]["classes"]]
+
+    for vendor_index, vendor in enumerate(vendors):
+        if cfg["tta"]["reset"] == "vendor" or (
+            vendor_index == 0 and cfg["tta"]["reset"] != "never"
+        ):
+            method.reset()
+        loader = build_target_slice_loader(
+            vendor,
+            cfg,
+            order_seed=source_seed,
+            batch_size=int(cfg["tta"]["batch_size"]),
+        )
+        dataset = loader.dataset
+        if not isinstance(dataset, MMSTargetSliceDataset):
+            raise TypeError("Target slice loader has an unexpected dataset type")
+        if dataset.order_seed != source_seed:
+            raise RuntimeError("Resolved slice order seed differs from the source checkpoint seed")
+        target_orders[vendor] = {
+            "order_seed": dataset.order_seed,
+            "n_slices": len(dataset),
+            "slice_order_sha256": dataset.slice_order_sha256,
+        }
+
+        slice_records: list[dict[str, Any]] = []
+        batch_records: list[dict[str, Any]] = []
+        for batch_arrival_index, batch in enumerate(loader):
+            predictions, adaptation, probe_payload = run_random_slice_batch(
+                method, batch["image"], device
+            )
+            targets = dataset.load_masks(list(batch["mask_path"]))
+            if probe_payload is not None:
+                adaptation["_probe_payload"] = probe_payload
+                entropy_probe = attach_entropy_label_probe([adaptation], targets)
+            else:
+                entropy_probe = None
+            slice_ids = list(batch["slice_id"])
+            batch_record = {
+                "method": method_name,
+                "source_seed": source_seed,
+                "vendor": vendor,
+                "batch_arrival_index": batch_arrival_index,
+                "arrival_batch_size": int(predictions.shape[0]),
+                "slice_ids": slice_ids,
+                "adaptation": adaptation,
+                "target_order_seed": dataset.order_seed,
+                "slice_order_sha256": dataset.slice_order_sha256,
+            }
+            if entropy_probe is not None:
+                batch_record["entropy_label_probe"] = entropy_probe
+            batch_records.append(batch_record)
+
+            for batch_position in range(int(predictions.shape[0])):
+                metrics, gt_present = evaluate_slice(
+                    predictions[batch_position].numpy(),
+                    targets[batch_position].numpy(),
+                    classes=classes,
+                    class_names=class_names,
+                )
+                slice_records.append({
+                    "method": method_name,
+                    "profile_verified": bool(method_cfg["profile_verified"]),
+                    "profile_kind": method_cfg["profile_kind"],
+                    "source_seed": source_seed,
+                    "target_order_seed": dataset.order_seed,
+                    "slice_order_sha256": dataset.slice_order_sha256,
+                    "initialization_profile": initialization_profile,
+                    "method_seed": int(method_cfg["method_seed"]),
+                    "vendor": vendor,
+                    "patient_id": str(batch["patient_id"][batch_position]),
+                    "phase": str(batch["phase"][batch_position]),
+                    "z_index": int(batch["z_index"][batch_position]),
+                    "slice_id": slice_ids[batch_position],
+                    "slice_arrival_index": int(batch["slice_arrival_index"][batch_position]),
+                    "batch_arrival_index": batch_arrival_index,
+                    "batch_position": batch_position,
+                    "arrival_batch_size": int(predictions.shape[0]),
+                    "timing": cfg["tta"]["timing"],
+                    "reset": cfg["tta"]["reset"],
+                    "prediction_source": method.prediction_source,
+                    "metrics": metrics,
+                    "gt_present": gt_present,
+                    "source_checkpoint_sha256": checkpoint_hash,
+                    "protocol_sha256": protocol_hash,
+                    "target_stream_sha256": stream_hash,
+                })
+
+        if len(slice_records) != len(dataset):
+            raise RuntimeError(
+                f"Random slice stream for Vendor {vendor} produced {len(slice_records)} "
+                f"predictions for {len(dataset)} slices"
+            )
+        _write_jsonl(slice_records, result_root / f"vendor_{vendor}.jsonl")
+        _write_jsonl(batch_records, result_root / f"vendor_{vendor}_batches.jsonl")
+        summary = aggregate_slice_results(
+            slice_records,
+            bootstrap_resamples=int(cfg["evaluation"]["bootstrap_resamples"]),
+            seed=int(cfg["evaluation"]["bootstrap_seed"]),
+        )
+        save_json(summary, result_root / f"vendor_{vendor}_summary.json")
+        summaries[vendor] = summary
+
+    manifest = {
+        "method": method_name,
+        "source_seed": source_seed,
+        "initialization_profile": initialization_profile,
+        "stream_mode": "slice_random",
+        "vendors": vendors,
+        "resolved_config": cfg,
+        "resolved_method_config": method_cfg,
+        "runtime": run_metadata(Path(__file__).resolve().parent),
+        "source_checkpoint_sha256": checkpoint_hash,
+        "fisher_sha256": fisher_hash,
+        "protocol_sha256": protocol_hash,
+        "target_stream_sha256": stream_hash,
+        "target_order_policy": {**TARGET_SLICE_ORDER_POLICY, "vendor_order": vendors},
+        "target_order_seed": source_seed,
+        "target_orders": target_orders,
+        "slice_metric_policy": dict(SLICE_METRIC_POLICY),
+        "trainable_parameters": method.trainable_parameter_names(),
+        "summaries": summaries,
+    }
+    save_json(manifest, result_root / "run_manifest.json")
+    return manifest
+
+
+def run_experiment(
+    cfg: dict[str, Any],
+    method_name: str,
+    source_seed: int,
+    vendors: list[str],
+    device: torch.device,
+) -> dict[str, Any]:
+    stream_mode = str(cfg["tta"].get("stream_mode", "patient_volume"))
+    if stream_mode == "slice_random":
+        return run_slice_experiment(cfg, method_name, source_seed, vendors, device)
+    if stream_mode != "patient_volume":
+        raise ValueError(f"Unknown target stream mode: {stream_mode}")
+    method, method_cfg, checkpoint, expected_initialization, fisher_hash = _prepare_experiment(
+        cfg, method_name, source_seed, device
+    )
     protocol_hash = file_sha256(cfg["data"]["protocol_file"])
     stream_hash = file_sha256(cfg["data"]["stream_file"])
     checkpoint_hash = file_sha256(checkpoint)
     initialization_profile = expected_initialization
-    fisher_hash = file_sha256(method_cfg["fisher_path"]) if method_name == "eata" else None
     result_root = Path(cfg["tta"]["results_dir"]) / method_name / f"seed{source_seed}" / f"{cfg['tta']['timing']}_{cfg['tta']['reset']}"
     summaries: dict[str, Any] = {}
     target_orders: dict[str, Any] = {}
@@ -309,6 +510,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--method", required=True, choices=sorted(METHODS))
     parser.add_argument("--source-seed", required=True, type=int)
     parser.add_argument("--vendors", nargs="+", choices=["B", "C", "D"])
+    parser.add_argument(
+        "--stream-mode",
+        choices=["patient_volume", "slice_random"],
+        help="Override the configured target arrival mode",
+    )
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
 
@@ -316,6 +522,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
+    if args.stream_mode is not None:
+        cfg["tta"]["stream_mode"] = args.stream_mode
     vendors = args.vendors or list(cfg["experiment"]["target_vendors"])
     manifest = run_experiment(cfg, args.method, args.source_seed, vendors, get_device(args.device))
     print(json.dumps({"method": manifest["method"], "vendors": manifest["vendors"], "summaries": manifest["summaries"]}, indent=2))

@@ -5,7 +5,9 @@ import random
 import pytest
 
 from data import (
+    MMSTargetSliceDataset,
     _source_records,
+    build_target_slice_loader,
     build_source_validation_volumes,
     build_target_stream,
     split_volume_into_batches,
@@ -108,3 +110,44 @@ def test_target_order_does_not_mutate_global_random_state(config):
 def test_target_order_requires_explicit_integer_seed(config):
     with pytest.raises(TypeError, match="integer checkpoint seed"):
         build_target_stream("B", config, order_seed=True)
+
+
+@pytest.mark.parametrize("vendor,expected", [("B", 2642), ("C", 1214), ("D", 1266)])
+def test_random_slice_stream_has_exact_seeded_coverage(config, vendor, expected):
+    first_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=4)
+    repeated_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=4)
+    different_loader = build_target_slice_loader(vendor, config, order_seed=2023, batch_size=4)
+    first = first_loader.dataset
+    repeated = repeated_loader.dataset
+    different = different_loader.dataset
+    assert isinstance(first, MMSTargetSliceDataset)
+    assert len(first) == expected
+    assert len(first.slice_order) == len(set(first.slice_order))
+    assert first.slice_order == repeated.slice_order
+    assert first.slice_order_sha256 == repeated.slice_order_sha256
+    assert first.slice_order != different.slice_order
+    assert first.slice_order_sha256 != different.slice_order_sha256
+    assert set(first.slice_order) == set(different.slice_order)
+    assert [len(indices) for indices in first_loader.batch_sampler][-1] == 2
+    assert any(
+        len({row["patient_id"] for row in first.records[start : start + 4]}) > 1
+        for start in range(0, len(first), 4)
+    )
+    assert any(
+        len({row["phase"] for row in first.records[start : start + 4]}) > 1
+        for start in range(0, len(first), 4)
+    )
+    if vendor == "C":
+        assert {row["original_part"] for row in first.records} == {"Testing", "Validation"}
+
+
+def test_random_slice_stream_does_not_mutate_global_random_state(config):
+    random.seed(913)
+    state = random.getstate()
+    build_target_slice_loader("B", config, order_seed=2022)
+    assert random.getstate() == state
+
+
+def test_random_slice_stream_requires_explicit_integer_seed(config):
+    with pytest.raises(TypeError, match="integer checkpoint seed"):
+        build_target_slice_loader("B", config, order_seed=False)

@@ -30,7 +30,7 @@ data/
 - 标签定义：`0=background`、`1=RV`、`2=MYO`、`3=LV`；
 - 网络输入由 `data.py` 增加通道维，成为 `[1, 256, 256]`。
 
-当前评估按项目约定直接在 `256×256×Z` 网格上进行，只报告 3D Dice 和以 pixel 为单位的 `HD95_px`，不进行 native-grid 逆变换。
+默认 `patient_volume` 评估直接在 `256×256×Z` 网格上报告 3D Dice 和 `HD95_px`。新增的 `slice_random` 模式在 Vendor 内打乱全部目标切片，并逐张报告 2D Dice 和 `HD95_2d_px`；两种模式都不进行 native-grid 逆变换。
 
 ## Manifest 用途
 
@@ -48,8 +48,11 @@ data/
 数据加载入口位于项目根目录的 `data.py`：
 
 ```python
-from data import build_source_loaders, build_target_stream
+from data import build_source_loaders, build_target_slice_loader, build_target_stream
 
 train_loader, val_loader = build_source_loaders(cfg, seed=2022)
 vendor_b_stream = build_target_stream("B", cfg, order_seed=2022)
+vendor_b_random_slices = build_target_slice_loader("B", cfg, order_seed=2022)
 ```
+
+随机切片 loader 的 dataset item 只包含图像、mask 路径和到达元数据；运行器必须先完成整批适配与预测，之后才能通过 dataset 加载 mask 计算逐切片指标。

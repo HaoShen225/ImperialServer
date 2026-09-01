@@ -137,6 +137,12 @@ Protocol v3 excludes `Training/Unlabeled` from the complete arrival stream. Vend
 
 The file hash is written into every result record.
 
+An optional, independently versioned `target_slice_streams.json` defines the
+`slice_random` evaluation mode. It shuffles every eligible slice within each Vendor
+using the source-checkpoint seed, forms cross-patient batches with `tta.batch_size`,
+and reports 2D per-slice metrics. It does not modify or supersede the authoritative
+patient-volume stream above.
+
 ### 2.8 `common.py` is narrowed
 
 A function is shared only when at least two methods use exactly the same semantics. Similar names are insufficient.
@@ -335,6 +341,11 @@ def build_source_loaders(cfg):
 
 def build_target_stream(vendor, cfg, order_seed):
     """Resolve one vendor-local patient order from the checkpoint seed."""
+    ...
+
+
+def build_target_slice_loader(vendor, cfg, order_seed, batch_size=None):
+    """Resolve one Vendor-local, checkpoint-seeded random slice stream."""
     ...
 
 
@@ -953,6 +964,7 @@ data:
   image_size: [256, 256]
   split_file: splits/vendor_a_split.json
   stream_file: splits/target_streams.json
+  slice_stream_file: splits/target_slice_streams.json
 
 model:
   name: resunet34
@@ -973,6 +985,9 @@ source:
   scheduler: cosine
   min_lr: 0.000001
   early_stopping_patience: 30
+
+tta:
+  stream_mode: patient_volume  # optional override: slice_random
 
 tta:
   batch_size: 4
@@ -1136,6 +1151,8 @@ Tests use a tiny synthetic four-class BN segmentation network whenever real M&Ms
 | Running accumulation | Ordinary batch-stat methods accumulate nothing; RoTTA RBN evolves and resets |
 | Deterministic replay | Stream, reset, and replay produce bit-identical outputs and records |
 | Volume batching | No cross-patient/phase batch; final partial batch retained; order preserved |
+| Random-slice stream | Vendor-local full coverage; checkpoint-seeded order/hash; cross-patient batches; final partial batch retained |
+| Slice metrics | 2D Dice/HD95 obey empty-class rules; all-slice and GT-present summaries use patient-cluster bootstrap |
 | Native-grid metrics | Known synthetic distances produce correct millimeter HD95/ASSD |
 | Timing | First-batch behavior differs correctly between the two timing modes |
 | Checkpoint identity | Different methods use the same checkpoint hash for the same source seed |

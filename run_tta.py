@@ -515,6 +515,11 @@ def parse_args() -> argparse.Namespace:
         choices=["patient_volume", "slice_random"],
         help="Override the configured target arrival mode",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        help="Override the configured TTA arrival batch size",
+    )
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
 
@@ -524,6 +529,10 @@ def main() -> None:
     cfg = load_config(args.config)
     if args.stream_mode is not None:
         cfg["tta"]["stream_mode"] = args.stream_mode
+    if args.batch_size is not None:
+        if args.batch_size < 1:
+            raise ValueError("batch-size must be positive")
+        cfg["tta"]["batch_size"] = args.batch_size
     vendors = args.vendors or list(cfg["experiment"]["target_vendors"])
     manifest = run_experiment(cfg, args.method, args.source_seed, vendors, get_device(args.device))
     print(json.dumps({"method": manifest["method"], "vendors": manifest["vendors"], "summaries": manifest["summaries"]}, indent=2))

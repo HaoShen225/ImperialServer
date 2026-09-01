@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from copy import deepcopy
 
 import numpy as np
@@ -29,6 +30,27 @@ def test_run_random_slice_batch_signature_has_no_label_boundary():
     assert list(inspect.signature(run_random_slice_batch).parameters) == [
         "method", "images", "device"
     ]
+
+
+def test_cli_accepts_tta_batch_size_override(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_tta.py",
+            "--method",
+            "tent",
+            "--source-seed",
+            "2022",
+            "--stream-mode",
+            "slice_random",
+            "--batch-size",
+            "8",
+        ],
+    )
+    args = run_tta_module.parse_args()
+    assert args.stream_mode == "slice_random"
+    assert args.batch_size == 8
 
 
 @__import__("pytest").mark.parametrize("method_name", ["source", "tent", "sar"])

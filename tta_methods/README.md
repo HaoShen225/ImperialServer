@@ -29,9 +29,9 @@ predict(images)         # 返回 logits，不修改适配状态
 | RoID | BN affine、soft-likelihood-ratio、certainty/diversity weighting 和源权重融合 |
 | DeYO | BN affine、patch shuffle、前景像素 entropy/PLPD 过滤 |
 
-正式 TENT profile 固定为：全部 BN affine、普通像素熵、每个 arrival batch 更新一步、`SGD(lr=1e-3, momentum=0.9, weight_decay=0)`，arrival batch size 为 4。
+正式 TENT profile 固定为：全部 BN affine、普通像素熵、每个 arrival batch 更新一步、`SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)`；病人流使用 BS=4，随机切片流使用 BS=8。
 
-正式 SAR profile 保留官方两阶段 SAM 机制：第一次反传只构造 sharpness perturbation，第二次筛选是第一次筛选的子集，随后由底层 `SGD(lr=1e-3, momentum=0.9, weight_decay=0)` 执行实际更新。`lr=1e-3` 是本项目用户指定值，因此 profile 标记为 `official_mechanism_custom_lr`。运行记录额外报告两轮筛选伪标签的全像素准确率、真值前景像素准确率和筛选覆盖率；真实 mask 始终位于适配边界之外。
+正式 SAR profile 保留官方两阶段 SAM 机制：第一次反传只构造 sharpness perturbation，第二次筛选是第一次筛选的子集，随后由底层 `SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)` 执行实际更新。运行记录额外报告两轮筛选伪标签的全像素准确率、真值前景像素准确率和筛选覆盖率；真实 mask 始终位于适配边界之外。
 
 ## SEG-MOD
 

@@ -142,8 +142,13 @@ def main() -> None:
                 manifest.get("method") != method
                 or manifest.get("stream_mode") != "slice_random"
                 or int(manifest["resolved_config"]["tta"]["batch_size"]) != 8
+                or manifest.get("slice_filter") != "manifest_has_fg_equals_1"
             ):
                 raise RuntimeError(f"Invalid BS=8 {method} manifest for seed {seed}")
+            if method in {"tent", "sar"} and float(
+                manifest["resolved_method_config"]["lr"]
+            ) != 6.25e-5:
+                raise RuntimeError(f"Invalid BS=8 {method} learning rate for seed {seed}")
             manifests[method][seed] = manifest
             summaries[method][seed] = {}
             order_hashes[method][seed] = {}
@@ -190,6 +195,7 @@ def main() -> None:
         "initialization_profile": "stochastic",
         "stream_mode": "slice_random",
         "batch_size": 8,
+        "slice_filter": "manifest_has_fg_equals_1",
         "seeds": list(SEEDS),
         "vendors": list(VENDORS),
         "strata": list(STRATA),

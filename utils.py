@@ -46,6 +46,10 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         raise ValueError(
             "model.pretrained_encoder is inconsistent with experiment.initialization_profile"
         )
+    if cfg["data"].get("slice_filter") != "manifest_has_fg_equals_1":
+        raise ValueError(
+            "data.slice_filter must be the locked manifest_has_fg_equals_1 policy"
+        )
 
     method_keys = {
         "source": {"profile_verified", "profile_kind", "method_seed"},

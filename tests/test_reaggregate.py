@@ -128,3 +128,15 @@ def test_source_reaggregation_rejects_adaptive_records(tmp_path, monkeypatch):
     )
     with pytest.raises(ValueError, match="Adaptive record"):
         reaggregate.prepare_reaggregation(cfg, root)
+
+
+def test_source_reaggregation_rejects_slice_filter_change(tmp_path, monkeypatch):
+    cfg, root = _fixture(tmp_path)
+    cfg["data"]["slice_filter"] = "manifest_has_fg_equals_1"
+    monkeypatch.setattr(
+        reaggregate,
+        "build_target_stream",
+        lambda vendor, config, order_seed: SimpleNamespace(target_order_sha256="unused"),
+    )
+    with pytest.raises(ValueError, match="slice-filter change requires new inference"):
+        reaggregate.prepare_reaggregation(cfg, root)

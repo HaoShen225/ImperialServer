@@ -47,7 +47,8 @@ def test_set_seed_uses_warn_only_determinism(monkeypatch):
 
 def test_stochastic_artifact_namespaces_are_locked():
     cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
-    assert cfg["source"]["checkpoint_dir"] == "checkpoints/Stochastic_Ini"
-    assert cfg["tta"]["results_dir"] == "results/Stochastic_Ini"
+    assert cfg["source"]["checkpoint_dir"] == "checkpoints/Stochastic_Ini_ForegroundOnly"
+    assert cfg["tta"]["results_dir"] == "results/Stochastic_Ini_ForegroundOnly"
     assert cfg["tta"]["stream_mode"] == "patient_volume"
     assert cfg["data"]["slice_stream_file"] == "splits/target_slice_streams.json"
+    assert cfg["data"]["slice_filter"] == "manifest_has_fg_equals_1"

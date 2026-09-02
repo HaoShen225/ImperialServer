@@ -12,6 +12,7 @@
 - 验证集：15 名患者；
 - 两者都来自 Vendor A 的 `Training/Labeled`；
 - 五个源模型 seed 使用完全相同的患者划分。
+- train 与 validation 都在加载前过滤 `has_fg=0` 的切片，分别保留 1017 和 255 张。
 
 文件通过 selector 引用 `data/splits/mms_vendor_a_to_bcd_tta.json` 中的患者列表，避免维护两份可能不一致的 ID。
 
@@ -23,16 +24,16 @@
 2. 对每个 Vendor 独立使用 checkpoint seed 打乱合格患者列表；
 3. 同一 seed 的 Source、TENT 和 SAR 使用完全相同的患者顺序；
 4. 每名患者固定先 ED、后 ES，患者作为不可拆分的顺序单元；
-5. 每个体积内部按 `z_index` 升序，最后一个不足四张的 arrival batch 仍保留；
+5. 每个体积先过滤 `has_fg=0` 的切片，再按剩余 `z_index` 升序；不足四张的尾 batch 仍保留；
 6. `Training/Unlabeled` 在打乱前被排除，不参与适配或评分。
 
 ### `target_slice_streams.json`
 
-定义可选的 `slice_random` 测试流。每个 Vendor 内将所有合格患者的 ED/ES 和 z 切片共同打乱，随机 seed 固定为对应 source checkpoint seed，之后按 `tta.batch_size` 组成跨患者随机 batch。B/C/D 不会相互混合，Vendor C 仍排除 `Training/Unlabeled`。
+定义可选的 `slice_random` 测试流。每个 Vendor 先过滤 `has_fg=0` 的切片，再将合格患者的 ED/ES 切片共同打乱；随机 seed 固定为对应 source checkpoint seed，之后按 `tta.batch_size` 组成跨患者随机 batch。B/C/D 不会相互混合，Vendor C 仍排除 `Training/Unlabeled`。
 
 该模式使用独立协议文件和顺序哈希，不改变上述 `patient_volume` 协议或既有实验结果。输出采用逐切片 2D Dice/HD95，并同时汇报全部切片与 GT 前景存在切片两种口径。
 
-当前协议版本为 v3。Vendor C 只包含 Validation 10 名和 Testing 40 名患者，共 50 名患者；原始数据中的 25 名 `Training/Unlabeled` 患者仍保留在 manifest，但不属于测评序列。
+当前目标 volume 流版本为 v4，随机切片流版本为 v2。过滤后 B/C/D 分别保留 2049、806、835 张切片；Vendor C 仍只包含 Validation 10 名和 Testing 40 名患者。
 
 实际完整患者列表保存在 `data/splits/mms_vendor_a_to_bcd_tta.json`。运行器会把完整协议文件、`target_streams.json` 的 SHA-256、顺序 seed、完整患者顺序及其 SHA-256 写入实验结果；`vendor_a_split.json` 作为受 Git 版本控制的源域 selector，指向同一个协议文件。
 

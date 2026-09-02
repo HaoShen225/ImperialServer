@@ -289,6 +289,7 @@ def run_slice_experiment(
             "order_seed": dataset.order_seed,
             "n_slices": len(dataset),
             "slice_order_sha256": dataset.slice_order_sha256,
+            "slice_filter": dataset.slice_filter,
         }
 
         slice_records: list[dict[str, Any]] = []
@@ -314,6 +315,7 @@ def run_slice_experiment(
                 "adaptation": adaptation,
                 "target_order_seed": dataset.order_seed,
                 "slice_order_sha256": dataset.slice_order_sha256,
+                "slice_filter": dataset.slice_filter,
             }
             if entropy_probe is not None:
                 batch_record["entropy_label_probe"] = entropy_probe
@@ -333,6 +335,7 @@ def run_slice_experiment(
                     "source_seed": source_seed,
                     "target_order_seed": dataset.order_seed,
                     "slice_order_sha256": dataset.slice_order_sha256,
+                    "slice_filter": dataset.slice_filter,
                     "initialization_profile": initialization_profile,
                     "method_seed": int(method_cfg["method_seed"]),
                     "vendor": vendor,
@@ -385,6 +388,7 @@ def run_slice_experiment(
         "target_order_policy": {**TARGET_SLICE_ORDER_POLICY, "vendor_order": vendors},
         "target_order_seed": source_seed,
         "target_orders": target_orders,
+        "slice_filter": cfg["data"]["slice_filter"],
         "slice_metric_policy": dict(SLICE_METRIC_POLICY),
         "trainable_parameters": method.trainable_parameter_names(),
         "summaries": summaries,
@@ -425,6 +429,9 @@ def run_experiment(
             "order_seed": dataset.order_seed,
             "patient_ids": dataset.patient_order,
             "target_order_sha256": dataset.target_order_sha256,
+            "target_content_sha256": dataset.target_content_sha256,
+            "n_slices": dataset.n_slices,
+            "slice_filter": dataset.slice_filter,
         }
         records = []
         for volume_index in range(len(dataset)):
@@ -453,12 +460,17 @@ def run_experiment(
                 "source_seed": source_seed,
                 "target_order_seed": dataset.order_seed,
                 "target_order_sha256": dataset.target_order_sha256,
+                "target_content_sha256": dataset.target_content_sha256,
+                "slice_filter": dataset.slice_filter,
                 "initialization_profile": initialization_profile,
                 "method_seed": int(method_cfg["method_seed"]),
                 "vendor": vendor,
                 "patient_id": volume["patient_id"],
                 "phase": volume["phase"],
                 "volume_id": volume["volume_id"],
+                "n_slices": volume["n_slices"],
+                "slice_ids": volume["slice_ids"],
+                "z_indices": volume["z_indices"],
                 "patient_arrival_index": volume["patient_arrival_index"],
                 "volume_arrival_index": volume["volume_arrival_index"],
                 "timing": cfg["tta"]["timing"],
@@ -498,6 +510,7 @@ def run_experiment(
         "target_order_policy": {**TARGET_ORDER_POLICY, "vendor_order": vendors},
         "target_order_seed": source_seed,
         "target_orders": target_orders,
+        "slice_filter": cfg["data"]["slice_filter"],
         "summaries": summaries,
     }
     save_json(manifest, result_root / "run_manifest.json")

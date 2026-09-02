@@ -23,9 +23,9 @@ from utils import file_sha256, load_config
 SEEDS = (2022, 2023, 2024, 2025, 2026)
 VENDORS = ("B", "C", "D")
 EXPECTED = {
-    "B": {"slices": 2642, "patients": 125, "batches": 331, "last_batch": 2},
-    "C": {"slices": 1214, "patients": 50, "batches": 152, "last_batch": 6},
-    "D": {"slices": 1266, "patients": 50, "batches": 159, "last_batch": 2},
+    "B": {"slices": 2049, "patients": 125, "batches": 257, "last_batch": 1},
+    "C": {"slices": 806, "patients": 50, "batches": 101, "last_batch": 6},
+    "D": {"slices": 835, "patients": 50, "batches": 105, "last_batch": 3},
 }
 EXPECTED_METRICS = {
     "dice_rv", "dice_myo", "dice_lv", "dice_macro",
@@ -33,11 +33,11 @@ EXPECTED_METRICS = {
 }
 LOCKED_METHOD_CONFIGS = {
     "tent": {
-        "optimizer": "sgd", "lr": 1e-3, "momentum": 0.9,
+        "optimizer": "sgd", "lr": 6.25e-5, "momentum": 0.9,
         "weight_decay": 0.0, "steps": 1,
     },
     "sar": {
-        "optimizer": "sgd_sam", "lr": 1e-3, "momentum": 0.9,
+        "optimizer": "sgd_sam", "lr": 6.25e-5, "momentum": 0.9,
         "weight_decay": 0.0, "rho": 0.05, "steps": 1,
         "entropy_margin_factor": 0.4, "recovery_ema": 0.9,
         "recovery_threshold": 0.2,
@@ -172,6 +172,8 @@ def validate_run(
         raise RuntimeError("Manifest method or source seed is incorrect")
     if manifest.get("stream_mode") != "slice_random" or manifest.get("vendors") != list(VENDORS):
         raise RuntimeError("Manifest does not describe the B/C/D random-slice protocol")
+    if manifest.get("slice_filter") != "manifest_has_fg_equals_1":
+        raise RuntimeError("Manifest does not lock the foreground-only slice filter")
     if manifest.get("initialization_profile") != "stochastic":
         raise RuntimeError("Manifest initialization profile is not stochastic")
     resolved_tta = manifest["resolved_config"]["tta"]
@@ -213,6 +215,8 @@ def validate_run(
                 raise RuntimeError(f"Vendor {vendor} contains a record for the wrong method")
             if record.get("source_checkpoint_sha256") != checkpoint_hash:
                 raise RuntimeError(f"Vendor {vendor} contains a stale checkpoint hash")
+            if record.get("slice_filter") != "manifest_has_fg_equals_1":
+                raise RuntimeError(f"Vendor {vendor} contains an unfiltered slice record")
             if int(record["arrival_batch_size"]) > 8:
                 raise RuntimeError(f"Vendor {vendor} contains a batch larger than 8")
             if set(record["metrics"]) != EXPECTED_METRICS:
@@ -237,6 +241,7 @@ def validate_run(
                 or int(batch.get("batch_arrival_index", -1)) != batch_index
                 or int(batch.get("target_order_seed", -1)) != seed
                 or batch.get("slice_order_sha256") != order_hash
+                or batch.get("slice_filter") != "manifest_has_fg_equals_1"
             ):
                 raise RuntimeError(f"Vendor {vendor} batch {batch_index} metadata is invalid")
             if len(batch["slice_ids"]) != arrival_size:

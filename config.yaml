@@ -16,6 +16,7 @@ data:
   source_vendor: A
   image_size: [256, 256]
   num_workers: 0
+  slice_filter: manifest_has_fg_equals_1
 
 model:
   name: resunet34
@@ -37,7 +38,7 @@ source:
   min_lr: 0.000001
   early_stopping_patience: 30
   dice_epsilon: 0.000001
-  checkpoint_dir: checkpoints/Stochastic_Ini
+  checkpoint_dir: checkpoints/Stochastic_Ini_ForegroundOnly
   smoke:
     batch_size: 2
     epochs: 1
@@ -60,7 +61,7 @@ tta:
   reset: vendor
   deterministic: true
   precision: fp32
-  results_dir: results/Stochastic_Ini
+  results_dir: results/Stochastic_Ini_ForegroundOnly
 
 methods:
   source:
@@ -75,7 +76,7 @@ methods:
     update_scope: bn_affine
     bn_policy: batch_no_running
     optimizer: sgd
-    lr: 0.001
+    lr: 0.0000625
     momentum: 0.9
     weight_decay: 0.0
   eata:
@@ -104,7 +105,7 @@ methods:
     update_scope: bn_affine_except_encoder_layer4
     bn_policy: batch_no_running
     optimizer: sgd_sam
-    lr: 0.001
+    lr: 0.0000625
     momentum: 0.9
     weight_decay: 0.0
     entropy_margin_factor: 0.4

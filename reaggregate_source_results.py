@@ -165,6 +165,12 @@ def prepare_reaggregation(
         manifest = _read_json(manifest_path)
         if manifest.get("method") != "source":
             raise ValueError(f"Offline reaggregation accepts only source runs: {manifest_path}")
+        requested_filter = cfg["data"].get("slice_filter")
+        if requested_filter is not None and manifest.get("slice_filter") != requested_filter:
+            raise ValueError(
+                "A slice-filter change requires new inference and cannot be reaggregated offline: "
+                f"{manifest_path}"
+            )
         old_protocol_hash = manifest.get("protocol_sha256")
         old_stream_hash = manifest.get("target_stream_sha256")
         seed_summaries: dict[str, dict[str, dict[str, float]]] = {}

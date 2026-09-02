@@ -24,14 +24,14 @@ from utils import get_device, load_config, set_seed
 LOCKED_METHOD_CONFIGS = {
     "tent": {
         "optimizer": "sgd",
-        "lr": 1e-3,
+        "lr": 6.25e-5,
         "momentum": 0.9,
         "weight_decay": 0.0,
         "steps": 1,
     },
     "sar": {
         "optimizer": "sgd_sam",
-        "lr": 1e-3,
+        "lr": 6.25e-5,
         "momentum": 0.9,
         "weight_decay": 0.0,
         "rho": 0.05,
@@ -69,7 +69,7 @@ def _validate_locked_setup(method_name: str, method: Any, method_cfg: dict[str, 
         if not isinstance(method.optimizer, torch.optim.SGD):
             raise RuntimeError("TENT is not using SGD")
         group = method.optimizer.param_groups[0]
-        if (group["lr"], group["momentum"], group["weight_decay"]) != (1e-3, 0.9, 0.0):
+        if (group["lr"], group["momentum"], group["weight_decay"]) != (6.25e-5, 0.9, 0.0):
             raise RuntimeError(f"Unexpected TENT optimizer group: {group}")
         expected_names = {
             f"{module_name}.{parameter_name}"
@@ -83,7 +83,7 @@ def _validate_locked_setup(method_name: str, method: Any, method_cfg: dict[str, 
         ):
             raise RuntimeError("SAR is not using SAM with an SGD base optimizer")
         group = method.optimizer.base_optimizer.param_groups[0]
-        if (group["lr"], group["momentum"], group["weight_decay"]) != (1e-3, 0.9, 0.0):
+        if (group["lr"], group["momentum"], group["weight_decay"]) != (6.25e-5, 0.9, 0.0):
             raise RuntimeError(f"Unexpected SAR optimizer group: {group}")
         expected_names = {
             f"{module_name}.{parameter_name}"

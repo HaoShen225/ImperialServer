@@ -1,6 +1,6 @@
 {
     "name":  "MMS_vendor_A_to_BCD_TTA",
-    "version":  3,
+    "version":  4,
     "dataset":  "MMS_normalized",
     "seed":  42,
     "relative_to":  "..",
@@ -19,6 +19,7 @@
                      "source_split_strategy":  "pathology-stratified deterministic SHA-256 ranking",
                      "source_split_allocation":  "Hamilton largest-remainder allocation; alphabetical pathology tie-break",
                      "one_source_checkpoint":  true,
+                     "slice_filter":  "manifest_has_fg_equals_1",
                      "target_streams":  [
                                             "A_to_B",
                                             "A_to_C",

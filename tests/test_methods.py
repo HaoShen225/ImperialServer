@@ -38,7 +38,7 @@ def test_tent_uses_locked_sgd_profile(config, tiny_model):
     assert isinstance(method.optimizer, torch.optim.SGD)
     assert len(method.optimizer.param_groups) == 1
     group = method.optimizer.param_groups[0]
-    assert group["lr"] == pytest.approx(1e-3)
+    assert group["lr"] == pytest.approx(6.25e-5)
     assert group["momentum"] == pytest.approx(0.9)
     assert group["weight_decay"] == pytest.approx(0.0)
     expected = {
@@ -59,7 +59,7 @@ def test_sar_uses_locked_sam_sgd_profile(config, tiny_model):
     assert isinstance(method.optimizer.base_optimizer, torch.optim.SGD)
     assert len(method.optimizer.base_optimizer.param_groups) == 1
     group = method.optimizer.base_optimizer.param_groups[0]
-    assert group["lr"] == pytest.approx(1e-3)
+    assert group["lr"] == pytest.approx(6.25e-5)
     assert group["momentum"] == pytest.approx(0.9)
     assert group["weight_decay"] == pytest.approx(0.0)
     assert method.optimizer.rho == pytest.approx(0.05)

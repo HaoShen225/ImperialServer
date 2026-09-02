@@ -23,6 +23,7 @@ TARGET_ORDER_POLICY = {
     "shuffle_seed_source": "source_checkpoint_seed",
     "phase_order": ["ED", "ES"],
     "within_volume_order": "z_index_ascending",
+    "slice_filter": "manifest_has_fg_equals_1",
 }
 
 TARGET_SLICE_ORDER_POLICY = {
@@ -30,7 +31,10 @@ TARGET_SLICE_ORDER_POLICY = {
     "shuffle_unit": "slice",
     "shuffle_scope": "within_vendor",
     "shuffle_seed_source": "source_checkpoint_seed",
+    "slice_filter": "manifest_has_fg_equals_1",
 }
+
+FOREGROUND_SLICE_FILTER = "manifest_has_fg_equals_1"
 
 
 def _read_json(path: str | Path) -> dict[str, Any]:
@@ -49,6 +53,31 @@ def load_protocol(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def _resolve_dataset_path(cfg: dict[str, Any], relative: str) -> Path:
     return Path(cfg["data"]["root"]) / relative
+
+
+def _is_foreground_slice(row: dict[str, str]) -> bool:
+    """Resolve and validate the manifest's label-derived foreground indicator."""
+    try:
+        has_fg = int(row["has_fg"])
+        foreground_pixels = int(row["fg_pixels"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(f"Invalid foreground metadata for slice {row.get('slice_id')!r}") from error
+    if has_fg not in {0, 1}:
+        raise ValueError(f"has_fg must be 0 or 1 for slice {row.get('slice_id')!r}")
+    if bool(has_fg) != (foreground_pixels > 0):
+        raise ValueError(
+            f"has_fg/fg_pixels mismatch for slice {row.get('slice_id')!r}: "
+            f"has_fg={has_fg}, fg_pixels={foreground_pixels}"
+        )
+    return bool(has_fg)
+
+
+def _require_foreground_filter(cfg: dict[str, Any]) -> None:
+    actual = cfg["data"].get("slice_filter")
+    if actual != FOREGROUND_SLICE_FILTER:
+        raise ValueError(
+            f"Locked slice filter must be {FOREGROUND_SLICE_FILTER!r}, got {actual!r}"
+        )
 
 
 class MMSSourceDataset(Dataset):
@@ -78,10 +107,22 @@ def _source_records(cfg: dict[str, Any], split: str) -> list[dict[str, str]]:
     if split not in {"train", "val"}:
         raise ValueError(f"Unknown source split: {split}")
     protocol = load_protocol(cfg)
+    _require_foreground_filter(cfg)
     patient_ids = set(protocol["source"][split]["patient_ids"])
     rows = _read_csv(cfg["data"]["slices_manifest"])
-    records = [row for row in rows if row["vendor"] == "A" and row["patient_id"] in patient_ids]
+    records = [
+        row
+        for row in rows
+        if row["vendor"] == "A"
+        and row["patient_id"] in patient_ids
+        and _is_foreground_slice(row)
+    ]
     records.sort(key=lambda row: (row["patient_id"], 0 if row["phase"] == "ED" else 1, int(row["z_index"])))
+    expected = int(protocol["source"][split]["counts"]["foreground_slices"])
+    if len(records) != expected:
+        raise ValueError(
+            f"Source {split} foreground-slice count mismatch: expected {expected}, got {len(records)}"
+        )
     return records
 
 
@@ -116,12 +157,17 @@ class MMSTargetVolumeDataset(Dataset):
         order_seed: int | None = None,
         patient_order: Sequence[str] | None = None,
         target_order_sha256: str | None = None,
+        target_content_sha256: str | None = None,
+        slice_filter: str | None = None,
     ):
         self.volumes = list(volumes)
         self.data_root = Path(data_root)
         self.order_seed = order_seed
         self.patient_order = list(patient_order) if patient_order is not None else None
         self.target_order_sha256 = target_order_sha256
+        self.target_content_sha256 = target_content_sha256
+        self.slice_filter = slice_filter
+        self.n_slices = sum(len(volume["slices"]) for volume in self.volumes)
 
     def __len__(self) -> int:
         return len(self.volumes)
@@ -136,7 +182,9 @@ class MMSTargetVolumeDataset(Dataset):
             "vendor": volume["vendor"],
             "image": torch.from_numpy(np.stack(images)).float().unsqueeze(1),
             "mask_paths": [row["mask"] for row in volume["slices"]],
+            "slice_ids": [row["slice_id"] for row in volume["slices"]],
             "z_indices": [int(row["z_index"]) for row in volume["slices"]],
+            "n_slices": len(volume["slices"]),
         }
         for key in (
             "patient_arrival_index",
@@ -170,6 +218,7 @@ class MMSTargetSliceDataset(Dataset):
         self.order_seed = int(order_seed)
         self.slice_order = [str(record["slice_id"]) for record in self.records]
         self.slice_order_sha256 = slice_order_sha256
+        self.slice_filter = FOREGROUND_SLICE_FILTER
 
     def __len__(self) -> int:
         return len(self.records)
@@ -194,9 +243,11 @@ class MMSTargetSliceDataset(Dataset):
 
 
 def _volume_index(cfg: dict[str, Any]) -> dict[tuple[str, str, str], list[dict[str, str]]]:
+    _require_foreground_filter(cfg)
     grouped: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in _read_csv(cfg["data"]["slices_manifest"]):
-        grouped[(row["vendor"], row["patient_id"], row["phase"])].append(row)
+        if _is_foreground_slice(row):
+            grouped[(row["vendor"], row["patient_id"], row["phase"])].append(row)
     for rows in grouped.values():
         rows.sort(key=lambda row: int(row["z_index"]))
     return grouped
@@ -224,6 +275,23 @@ def slice_order_sha256(vendor: str, order_seed: int, slice_ids: Sequence[str]) -
     return hashlib.sha256(encoded).hexdigest()
 
 
+def target_content_sha256(vendor: str, volumes: Sequence[dict[str, Any]]) -> str:
+    """Hash the exact retained slice content of one ordered patient stream."""
+    payload = {
+        "vendor": vendor,
+        "slice_filter": FOREGROUND_SLICE_FILTER,
+        "volumes": [
+            {
+                "volume_id": volume["volume_id"],
+                "slice_ids": [row["slice_id"] for row in volume["slices"]],
+            }
+            for volume in volumes
+        ],
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def build_target_slice_loader(
     vendor: str,
     cfg: dict[str, Any],
@@ -234,6 +302,7 @@ def build_target_slice_loader(
     if isinstance(order_seed, bool) or not isinstance(order_seed, Integral):
         raise TypeError("order_seed must be an integer checkpoint seed")
     resolved_order_seed = int(order_seed)
+    _require_foreground_filter(cfg)
     stream_cfg = _read_json(cfg["data"]["slice_stream_file"])
     if vendor not in stream_cfg["target_vendors"]:
         raise ValueError(f"Vendor {vendor!r} is not in the target slice stream")
@@ -253,6 +322,7 @@ def build_target_slice_loader(
         if row["vendor"] == vendor
         and row["patient_id"] in patient_ids
         and row["original_part"] not in excluded_parts
+        and _is_foreground_slice(row)
     ]
     observed_patients = {row["patient_id"] for row in records}
     if observed_patients != patient_ids:
@@ -261,6 +331,12 @@ def build_target_slice_loader(
         raise ValueError(
             f"Target slice patient mismatch for Vendor {vendor}: "
             f"missing={missing}, unexpected={unexpected}"
+        )
+    expected_slices = int(protocol["targets"][vendor]["counts"]["foreground_slices"])
+    if len(records) != expected_slices:
+        raise ValueError(
+            f"Target slice count mismatch for Vendor {vendor}: "
+            f"expected {expected_slices}, got {len(records)}"
         )
     records.sort(
         key=lambda row: (
@@ -303,6 +379,7 @@ def build_target_stream(
     if isinstance(order_seed, bool) or not isinstance(order_seed, Integral):
         raise TypeError("order_seed must be an integer checkpoint seed")
     resolved_order_seed = int(order_seed)
+    _require_foreground_filter(cfg)
     stream_cfg = _read_json(cfg["data"]["stream_file"])
     if vendor not in stream_cfg["target_vendors"]:
         raise ValueError(f"Vendor {vendor!r} is not in the authoritative target stream")
@@ -356,13 +433,23 @@ def build_target_stream(
             volume["volume_arrival_index"] = len(volumes)
             volume["phase_arrival_index"] = phase_arrival_index
             volumes.append(volume)
+    expected_slices = int(target_cfg["counts"]["foreground_slices"])
+    observed_slices = sum(len(volume["slices"]) for volume in volumes)
+    if observed_slices != expected_slices:
+        raise ValueError(
+            f"Target foreground-slice count mismatch for Vendor {vendor}: "
+            f"expected {expected_slices}, got {observed_slices}"
+        )
     order_hash = target_order_sha256(vendor, resolved_order_seed, patient_order)
+    content_hash = target_content_sha256(vendor, volumes)
     return MMSTargetVolumeDataset(
         volumes,
         cfg["data"]["root"],
         order_seed=resolved_order_seed,
         patient_order=patient_order,
         target_order_sha256=order_hash,
+        target_content_sha256=content_hash,
+        slice_filter=FOREGROUND_SLICE_FILTER,
     )
 
 
@@ -375,7 +462,11 @@ def build_source_validation_volumes(cfg: dict[str, Any]) -> MMSTargetVolumeDatas
     for (patient_id, phase), slices in sorted(grouped.items(), key=lambda item: (item[0][0], 0 if item[0][1] == "ED" else 1)):
         slices.sort(key=lambda row: int(row["z_index"]))
         volumes.append({"volume_id": f"{patient_id}_{phase}", "patient_id": patient_id, "phase": phase, "vendor": "A", "slices": slices})
-    return MMSTargetVolumeDataset(volumes, cfg["data"]["root"])
+    return MMSTargetVolumeDataset(
+        volumes,
+        cfg["data"]["root"],
+        slice_filter=FOREGROUND_SLICE_FILTER,
+    )
 
 
 def split_volume_into_batches(images: torch.Tensor, batch_size: int) -> Iterable[torch.Tensor]:

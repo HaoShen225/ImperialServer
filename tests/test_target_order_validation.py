@@ -32,6 +32,9 @@ def _manifest_and_records(config, vendor: str, seed: int):
                 "order_seed": seed,
                 "patient_ids": stream.patient_order,
                 "target_order_sha256": stream.target_order_sha256,
+                "target_content_sha256": stream.target_content_sha256,
+                "n_slices": stream.n_slices,
+                "slice_filter": stream.slice_filter,
             }
         },
     }
@@ -44,6 +47,11 @@ def _manifest_and_records(config, vendor: str, seed: int):
             "volume_arrival_index": volume["volume_arrival_index"],
             "target_order_seed": seed,
             "target_order_sha256": stream.target_order_sha256,
+            "target_content_sha256": stream.target_content_sha256,
+            "slice_filter": stream.slice_filter,
+            "n_slices": len(volume["slices"]),
+            "slice_ids": [row["slice_id"] for row in volume["slices"]],
+            "z_indices": [int(row["z_index"]) for row in volume["slices"]],
         }
         for volume in stream.volumes
     ]
@@ -90,6 +98,7 @@ def _slice_manifest_and_records(config, vendor: str, seed: int):
                 "order_seed": seed,
                 "n_slices": len(stream),
                 "slice_order_sha256": stream.slice_order_sha256,
+                "slice_filter": stream.slice_filter,
             }
         },
     }
@@ -103,6 +112,7 @@ def _slice_manifest_and_records(config, vendor: str, seed: int):
             "slice_arrival_index": index,
             "target_order_seed": seed,
             "slice_order_sha256": stream.slice_order_sha256,
+            "slice_filter": stream.slice_filter,
         }
         for index, row in enumerate(stream.records)
     ]

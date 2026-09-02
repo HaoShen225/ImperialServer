@@ -15,8 +15,14 @@ from data import (
 
 
 def test_locked_source_split_and_target_disjoint(config):
-    train = {row["patient_id"] for row in _source_records(config, "train")}
-    validation = {row["patient_id"] for row in _source_records(config, "val")}
+    train_records = _source_records(config, "train")
+    validation_records = _source_records(config, "val")
+    train = {row["patient_id"] for row in train_records}
+    validation = {row["patient_id"] for row in validation_records}
+    assert len(train_records) == 1017
+    assert len(validation_records) == 255
+    assert all(row["has_fg"] == "1" and int(row["fg_pixels"]) > 0 for row in train_records)
+    assert all(row["has_fg"] == "1" and int(row["fg_pixels"]) > 0 for row in validation_records)
     assert len(train) == 60
     assert len(validation) == 15
     assert train.isdisjoint(validation)
@@ -26,6 +32,10 @@ def test_locked_source_split_and_target_disjoint(config):
         targets[vendor] = {volume["patient_id"] for volume in stream.volumes}
         assert len(targets[vendor]) == expected
         assert len(stream) == expected * 2
+        assert all(
+            row["has_fg"] == "1" and int(row["fg_pixels"]) > 0
+            for volume in stream.volumes for row in volume["slices"]
+        )
         assert all([int(row["z_index"]) for row in volume["slices"]] == sorted(int(row["z_index"]) for row in volume["slices"]) for volume in stream.volumes)
         if vendor == "C":
             assert {
@@ -63,6 +73,11 @@ def test_target_mask_is_lazy(config):
 
 def test_source_validation_volume_remains_compatible_without_arrival_metadata(config):
     stream = build_source_validation_volumes(config)
+    assert stream.n_slices == 255
+    assert all(
+        row["has_fg"] == "1" and int(row["fg_pixels"]) > 0
+        for item in stream.volumes for row in item["slices"]
+    )
     volume = stream[0]
     assert "patient_arrival_index" not in volume
     assert "volume_arrival_index" not in volume
@@ -112,11 +127,14 @@ def test_target_order_requires_explicit_integer_seed(config):
         build_target_stream("B", config, order_seed=True)
 
 
-@pytest.mark.parametrize("vendor,expected", [("B", 2642), ("C", 1214), ("D", 1266)])
-def test_random_slice_stream_has_exact_seeded_coverage(config, vendor, expected):
-    first_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=4)
-    repeated_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=4)
-    different_loader = build_target_slice_loader(vendor, config, order_seed=2023, batch_size=4)
+@pytest.mark.parametrize(
+    "vendor,expected,last_batch",
+    [("B", 2049, 1), ("C", 806, 6), ("D", 835, 3)],
+)
+def test_random_slice_stream_has_exact_seeded_coverage(config, vendor, expected, last_batch):
+    first_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=8)
+    repeated_loader = build_target_slice_loader(vendor, config, order_seed=2022, batch_size=8)
+    different_loader = build_target_slice_loader(vendor, config, order_seed=2023, batch_size=8)
     first = first_loader.dataset
     repeated = repeated_loader.dataset
     different = different_loader.dataset
@@ -128,14 +146,15 @@ def test_random_slice_stream_has_exact_seeded_coverage(config, vendor, expected)
     assert first.slice_order != different.slice_order
     assert first.slice_order_sha256 != different.slice_order_sha256
     assert set(first.slice_order) == set(different.slice_order)
-    assert [len(indices) for indices in first_loader.batch_sampler][-1] == 2
+    assert [len(indices) for indices in first_loader.batch_sampler][-1] == last_batch
+    assert all(row["has_fg"] == "1" and int(row["fg_pixels"]) > 0 for row in first.records)
     assert any(
-        len({row["patient_id"] for row in first.records[start : start + 4]}) > 1
-        for start in range(0, len(first), 4)
+        len({row["patient_id"] for row in first.records[start : start + 8]}) > 1
+        for start in range(0, len(first), 8)
     )
     assert any(
-        len({row["phase"] for row in first.records[start : start + 4]}) > 1
-        for start in range(0, len(first), 4)
+        len({row["phase"] for row in first.records[start : start + 8]}) > 1
+        for start in range(0, len(first), 8)
     )
     if vendor == "C":
         assert {row["original_part"] for row in first.records} == {"Testing", "Validation"}

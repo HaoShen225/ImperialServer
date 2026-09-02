@@ -38,6 +38,9 @@ def validate_target_order(
         "order_seed": seed,
         "patient_ids": expected.patient_order,
         "target_order_sha256": expected.target_order_sha256,
+        "target_content_sha256": expected.target_content_sha256,
+        "n_slices": expected.n_slices,
+        "slice_filter": expected.slice_filter,
     }
     actual_manifest_order = manifest.get("target_orders", {}).get(vendor)
     if actual_manifest_order != expected_manifest_order:
@@ -57,6 +60,11 @@ def validate_target_order(
             record.get("volume_arrival_index"),
             record.get("target_order_seed"),
             record.get("target_order_sha256"),
+            record.get("target_content_sha256"),
+            record.get("slice_filter"),
+            record.get("n_slices"),
+            record.get("slice_ids"),
+            record.get("z_indices"),
         )
         wanted = (
             vendor,
@@ -66,6 +74,11 @@ def validate_target_order(
             volume["volume_arrival_index"],
             seed,
             expected.target_order_sha256,
+            expected.target_content_sha256,
+            expected.slice_filter,
+            len(volume["slices"]),
+            [row["slice_id"] for row in volume["slices"]],
+            [int(row["z_index"]) for row in volume["slices"]],
         )
         if actual != wanted:
             raise RuntimeError(
@@ -117,6 +130,7 @@ def validate_target_slice_order(
         "order_seed": seed,
         "n_slices": len(expected),
         "slice_order_sha256": expected.slice_order_sha256,
+        "slice_filter": expected.slice_filter,
     }
     if manifest.get("target_orders", {}).get(vendor) != expected_manifest_order:
         raise RuntimeError(f"Manifest target slice order is invalid for Vendor {vendor}, seed {seed}")
@@ -135,6 +149,7 @@ def validate_target_slice_order(
             record.get("slice_arrival_index"),
             record.get("target_order_seed"),
             record.get("slice_order_sha256"),
+            record.get("slice_filter"),
         )
         wanted = (
             vendor,
@@ -145,6 +160,7 @@ def validate_target_slice_order(
             arrival_index,
             seed,
             expected.slice_order_sha256,
+            expected.slice_filter,
         )
         if actual != wanted:
             raise RuntimeError(

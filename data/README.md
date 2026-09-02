@@ -30,20 +30,20 @@ data/
 - 标签定义：`0=background`、`1=RV`、`2=MYO`、`3=LV`；
 - 网络输入由 `data.py` 增加通道维，成为 `[1, 256, 256]`。
 
-默认 `patient_volume` 评估直接在 `256×256×Z` 网格上报告 3D Dice 和 `HD95_px`。新增的 `slice_random` 模式在 Vendor 内打乱全部目标切片，并逐张报告 2D Dice 和 `HD95_2d_px`；两种模式都不进行 native-grid 逆变换。
+默认 `patient_volume` 评估在过滤后的 `256×256×Z` 前景切片栈上报告 3D Dice 和 `HD95_px`。`slice_random` 模式先过滤、再在 Vendor 内打乱目标切片，并逐张报告 2D Dice 和 `HD95_2d_px`；两种模式都不进行 native-grid 逆变换。
 
 ## Manifest 用途
 
 - `patients.csv`：vendor、中心、病理类型和 ED/ES frame 等患者级信息；原始 Windows 路径只作为历史元数据，不用于运行。
 - `volumes.csv`：原始/重采样尺寸、spacing、切片数和前景统计。
-- `slices.csv`：运行时的主要索引。每个 checkpoint seed 在各 Vendor 内独立打乱患者，随后按 `patient → ED/ES → z_index` 读取。
+- `slices.csv`：运行时的主要索引。Source train/validation 和 B/C/D 测试流只保留 `has_fg=1` 且 `fg_pixels>0` 的切片；过滤在顺序打乱和组 batch 前完成。
 - `qc_report.json`：345 名患者、690 个 ED/ES 体积及各 vendor 数量的预处理汇总。
 
 完整数据清单仍保留所有 345 名患者；正式 C 域测评只使用 Validation 10 名和 Testing 40 名患者，共 50 名患者、100 个 ED/ES 体积。
 
 ## 标签隔离
 
-测试时适配方法只能接收图像张量。`MMSTargetVolumeDataset` 首先加载图像并保留 mask 路径；只有 `run_volume` 完整返回预测后，外层评估器才调用 `load_mask`。任何 TTA 方法都不得导入数据模块或利用 B/C/D 标签选择阈值、优化器或方法变体。
+测试时适配方法只能接收图像张量。数据流使用 manifest 中预计算的标签派生字段 `has_fg` 做协议级切片筛选，但不在适配前加载 mask 数组；只有预测返回后，外层评估器才调用 `load_mask`。该口径必须标记为 foreground-only，不得与原始全切片协议混为一组结果。
 
 数据加载入口位于项目根目录的 `data.py`：
 

@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.4164328349606212,
+      "ci95_low": 0.3609772511685832,
+      "mean": 0.3888095720238194,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_macro": {
+      "ci95_high": 0.379125987804041,
+      "ci95_low": 0.33422383460253563,
+      "mean": 0.35621185365556124,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_myo": {
+      "ci95_high": 0.37054701331730994,
+      "ci95_low": 0.3333804933186823,
+      "mean": 0.3517330109873479,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_rv": {
+      "ci95_high": 0.36174776761763744,
+      "ci95_low": 0.29607523144424674,
+      "mean": 0.3280929779555165,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 130.05449010934245,
+      "ci95_low": 117.40753518733248,
+      "mean": 123.72135958934439,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 125.20438127867885,
+      "ci95_low": 113.72357867254861,
+      "mean": 119.43141165670976,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 105.98086451144364,
+      "ci95_low": 94.43941112890343,
+      "mean": 100.39577039739143,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 142.80841134507878,
+      "ci95_low": 125.42748687813292,
+      "mean": 134.17710498339343,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.42741638820934724,
+      "ci95_low": 0.3693640267904327,
+      "mean": 0.39834073165418415,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 810
+    },
+    "dice_macro": {
+      "ci95_high": 0.400061010969166,
+      "ci95_low": 0.35349427015132606,
+      "mean": 0.3766149225220592,
+      "n_class_slice_pairs": 2331,
+      "n_patients": 50
+    },
+    "dice_myo": {
+      "ci95_high": 0.3728079933465259,
+      "ci95_low": 0.33453207931635665,
+      "mean": 0.3538518845475126,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 830
+    },
+    "dice_rv": {
+      "ci95_high": 0.4113762874902712,
+      "ci95_low": 0.34405371407306506,
+      "mean": 0.3776521513644808,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 691
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 123.14338348466602,
+      "ci95_low": 111.23026838431986,
+      "mean": 117.29996631331402,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 810
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 108.17340044978005,
+      "ci95_low": 98.33197226963155,
+      "mean": 103.29985121671878,
+      "n_class_slice_pairs": 2331,
+      "n_patients": 50
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 104.4401161622719,
+      "ci95_low": 93.10325569171336,
+      "mean": 98.8281276985496,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 830
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 98.97510797284983,
+      "ci95_low": 88.74491233214658,
+      "mean": 93.77145963829274,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 691
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

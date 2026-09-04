@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.8189656247803097,
+      "ci95_low": 0.7646281850484312,
+      "mean": 0.7928891034120893,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_macro": {
+      "ci95_high": 0.7261308798305979,
+      "ci95_low": 0.6684971264556022,
+      "mean": 0.698553301450968,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_myo": {
+      "ci95_high": 0.7073338163854817,
+      "ci95_low": 0.6607468233419945,
+      "mean": 0.68443527946293,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_rv": {
+      "ci95_high": 0.6668858237297892,
+      "ci95_low": 0.5653819597629325,
+      "mean": 0.618335521477885,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 62.17935185557326,
+      "ci95_low": 38.92122952717558,
+      "mean": 50.21924843660803,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 71.49219693437,
+      "ci95_low": 49.58761052667377,
+      "mean": 60.45910145128246,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 55.0718191403532,
+      "ci95_low": 35.76504289697128,
+      "mean": 45.367013289596336,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 101.2936155524686,
+      "ci95_low": 71.41270815453676,
+      "mean": 85.791042627643,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.8274345675010473,
+      "ci95_low": 0.777061482835962,
+      "mean": 0.8033652173393997,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "dice_macro": {
+      "ci95_high": 0.7562858874247067,
+      "ci95_low": 0.6967027473458305,
+      "mean": 0.7280476654981688,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "dice_myo": {
+      "ci95_high": 0.7085418662998751,
+      "ci95_low": 0.6630442849958558,
+      "mean": 0.6861378547849771,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "dice_rv": {
+      "ci95_high": 0.7453595565695978,
+      "ci95_low": 0.6378614371739273,
+      "mean": 0.6946399243701298,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 57.1296942683545,
+      "ci95_low": 35.152406358381576,
+      "mean": 46.04015787824657,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 55.654247700805655,
+      "ci95_low": 35.56504319571186,
+      "mean": 45.71285671390884,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 53.99999918078624,
+      "ci95_low": 34.97994935772761,
+      "mean": 44.58279078930892,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 58.31809883323462,
+      "ci95_low": 35.44430896014553,
+      "mean": 46.51562147417102,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

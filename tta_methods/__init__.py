@@ -12,11 +12,13 @@ from .roid.method import RoID
 from .rotta.method import RoTTA
 from .sar.method import SAR
 from .source import Source
+from .tbn.method import TBN
 from .tent.method import TENT
 
 
 METHODS = {
     "source": Source,
+    "tbn": TBN,
     "tent": TENT,
     "eata": EATA,
     "sar": SAR,

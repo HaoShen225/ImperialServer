@@ -1,6 +1,6 @@
 # 测试时适配方法说明
 
-本目录实现统一协议下的八种测试时适配方法。所有方法直接继承 `BaseTTA`，共享相同源 checkpoint、目标流、arrival batch、timing 和 reset policy。
+本目录实现统一协议下的九种测试时适配方法。所有方法直接继承 `BaseTTA`，共享相同源 checkpoint、目标流、arrival batch、timing 和 reset policy。
 
 ## 公共接口
 
@@ -21,6 +21,7 @@ predict(images)         # 返回 logits，不修改适配状态
 | 方法 | 主要更新与状态 |
 |---|---|
 | Source | 冻结模型，使用源域 BN running statistics，不适配 |
+| TBN | 冻结全部参数，仅使用当前 arrival batch 的 BN statistics，不累计 running statistics |
 | TENT | 更新全部 BN affine，最小化像素熵 |
 | EATA | TENT 参数范围，加可靠性/冗余过滤和 Vendor A Fisher 正则 |
 | SAR | 排除 encoder layer4 的 BN affine，同一 batch 上执行两次 SAM 和恢复机制 |
@@ -31,7 +32,11 @@ predict(images)         # 返回 logits，不修改适配状态
 
 正式 TENT profile 固定为：全部 BN affine、普通像素熵、每个 arrival batch 更新一步、`SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)`；病人流使用 BS=4，随机切片流使用 BS=8。
 
+TBN 是不含梯度更新的 batch-statistics-only 基线。模型保持 `eval()` 以关闭 Dropout 等随机层，所有参数（包括 BN affine）被冻结；BN running buffers 被移除，因此每次预测只使用当前 arrival batch 的均值与方差，且不同 batch 之间不累计统计量。病人流使用 BS=4，随机切片流使用 BS=8。
+
 正式 SAR profile 保留官方两阶段 SAM 机制：第一次反传只构造 sharpness perturbation，第二次筛选是第一次筛选的子集，随后由底层 `SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)` 执行实际更新。运行记录额外报告两轮筛选伪标签的全像素准确率、真值前景像素准确率和筛选覆盖率；真实 mask 始终位于适配边界之外。
+
+正式 CoTTA profile 采用分割论文机制：更新全模型、`Adam(lr=7.5e-6, betas=(0.9, 0.999), weight_decay=0)`、EMA teacher（momentum 0.999）、source anchor 置信度门控、7 个尺度乘以水平翻转/不翻转的 14-view teacher ensemble，以及每个参数元素 0.01 概率的随机源权重恢复。两种目标流使用同一绝对学习率；病人流 BS=4，随机切片流 BS=8。网络和 arrival batch 与原论文不同，因此 profile 标记为 `official_segmentation_mms_adapted`。
 
 ## SEG-MOD
 

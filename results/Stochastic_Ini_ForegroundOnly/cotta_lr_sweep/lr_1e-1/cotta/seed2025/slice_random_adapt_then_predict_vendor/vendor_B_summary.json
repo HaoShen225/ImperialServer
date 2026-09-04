@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.04705264071739173,
+      "ci95_low": 0.03139350460319916,
+      "mean": 0.03917547207348037,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "dice_macro": {
+      "ci95_high": 0.06166135645333822,
+      "ci95_low": 0.047412135183821126,
+      "mean": 0.05442098485906939,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "dice_myo": {
+      "ci95_high": 0.03104176548975751,
+      "ci95_low": 0.01923489278551549,
+      "mean": 0.02501974426764655,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "dice_rv": {
+      "ci95_high": 0.11301377676330288,
+      "ci95_low": 0.0859449421988966,
+      "mean": 0.09906773823608124,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 164.8649670234314,
+      "ci95_low": 150.27641429832116,
+      "mean": 157.46496834917554,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 224.82321111349196,
+      "ci95_low": 215.2435100782279,
+      "mean": 220.05688148141104,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 329.45620066316667,
+      "ci95_low": 321.0920790079191,
+      "mean": 325.2535432071769,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 184.9495784939395,
+      "ci95_low": 170.09274629605108,
+      "mean": 177.45213288788068,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.04309243001556302,
+      "ci95_low": 0.02849984683999278,
+      "mean": 0.0356539429099957,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2027
+    },
+    "dice_macro": {
+      "ci95_high": 0.046735523211273784,
+      "ci95_low": 0.03411378110884256,
+      "mean": 0.04018260543560739,
+      "n_class_slice_pairs": 5746,
+      "n_patients": 125
+    },
+    "dice_myo": {
+      "ci95_high": 0.03112953856832694,
+      "ci95_low": 0.01915814951870265,
+      "mean": 0.02501974426764655,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "dice_rv": {
+      "ci95_high": 0.06907257726497953,
+      "ci95_low": 0.051032372279541646,
+      "mean": 0.059874129129179915,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 1670
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 164.08711099681892,
+      "ci95_low": 149.3196597878273,
+      "mean": 156.68326479022633,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2027
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 218.2215150817339,
+      "ci95_low": 208.49869573795553,
+      "mean": 213.35360062337574,
+      "n_class_slice_pairs": 5746,
+      "n_patients": 125
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 329.3872571761625,
+      "ci95_low": 321.10500896098205,
+      "mean": 325.2535432071769,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 2049
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 165.3590342492592,
+      "ci95_low": 151.00993769487425,
+      "mean": 158.12399387272401,
+      "n_eligible_patients": 125,
+      "n_patients": 125,
+      "n_slices": 1670
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

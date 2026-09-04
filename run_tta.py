@@ -499,6 +499,7 @@ def run_experiment(
         "method": method_name,
         "source_seed": source_seed,
         "initialization_profile": initialization_profile,
+        "stream_mode": "patient_volume",
         "vendors": vendors,
         "resolved_config": cfg,
         "resolved_method_config": method_cfg,
@@ -511,6 +512,7 @@ def run_experiment(
         "target_order_seed": source_seed,
         "target_orders": target_orders,
         "slice_filter": cfg["data"]["slice_filter"],
+        "trainable_parameters": method.trainable_parameter_names(),
         "summaries": summaries,
     }
     save_json(manifest, result_root / "run_manifest.json")

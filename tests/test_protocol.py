@@ -53,7 +53,7 @@ def test_cli_accepts_tta_batch_size_override(monkeypatch):
     assert args.batch_size == 8
 
 
-@__import__("pytest").mark.parametrize("method_name", ["source", "tent", "sar"])
+@__import__("pytest").mark.parametrize("method_name", ["source", "tbn", "tent", "sar"])
 def test_random_slice_batch_smoke_for_core_methods(
     config, tiny_model, images, method_name
 ):

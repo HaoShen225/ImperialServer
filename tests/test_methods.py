@@ -8,6 +8,7 @@ from torch import nn
 
 from conftest import method_config
 from tta_methods import METHODS, build_method
+from tta_methods.cotta.augment import teacher_augmentation_ensemble
 from tta_methods.rotta.rbn import RobustBatchNorm2d
 from tta_methods.sar.sam import SAM
 
@@ -21,13 +22,66 @@ def test_every_method_constructs_and_processes(name, config, tiny_model, images)
     assert "parameter_drift" in info.extras
 
 
-@pytest.mark.parametrize("name", ["tent", "eata", "sar", "cotta", "roid", "deyo"])
+@pytest.mark.parametrize("name", ["tbn", "tent", "eata", "sar", "cotta", "roid", "deyo"])
 def test_batch_stat_methods_have_no_running_buffers(name, config, tiny_model):
     method = build_method(name, deepcopy(tiny_model), method_config(config, name), config["tta"], torch.device("cpu"))
     for module in method.model.modules():
         if isinstance(module, nn.BatchNorm2d):
             assert module.running_mean is None
             assert module.running_var is None
+
+
+def test_tbn_uses_only_current_batch_statistics_without_parameter_updates(
+    config, tiny_model, images
+):
+    method = build_method(
+        "tbn", deepcopy(tiny_model), method_config(config, "tbn"),
+        config["tta"], torch.device("cpu")
+    )
+    assert method.prediction_source == "tbn_model"
+    assert method.optimizer is None
+    assert method.trainable_parameter_names() == []
+    assert not method.model.training
+    batch_norms = [
+        module for module in method.model.modules()
+        if isinstance(module, nn.BatchNorm2d)
+    ]
+    assert batch_norms
+    assert all(not module.training for module in batch_norms)
+    assert all(not module.track_running_stats for module in batch_norms)
+    assert all(
+        module.running_mean is None and module.running_var is None
+        for module in batch_norms
+    )
+
+    before = {
+        name: value.detach().clone()
+        for name, value in method.model.named_parameters()
+    }
+    logits, info = method.process_batch(images)
+    assert logits.shape == (4, 4, 16, 16)
+    assert info.loss is None
+    assert info.n_seen == 4
+    assert info.n_selected == 0
+    assert not info.updated
+    assert info.extras["parameter_drift"] == 0.0
+    assert all(
+        torch.equal(before[name], parameter.detach())
+        for name, parameter in method.model.named_parameters()
+    )
+
+
+def test_tbn_prediction_depends_on_arrival_batch_composition(config, tiny_model, images):
+    method = build_method(
+        "tbn", deepcopy(tiny_model), method_config(config, "tbn"),
+        config["tta"], torch.device("cpu")
+    )
+    reference = torch.stack([images[0], images[0]])
+    shifted = torch.stack([images[0], images[1] * 10.0 + 5.0])
+    reference_logits, _ = method.process_batch(reference)
+    method.reset()
+    shifted_logits, _ = method.process_batch(shifted)
+    assert not torch.equal(reference_logits[0], shifted_logits[0])
 
 
 def test_tent_uses_locked_sgd_profile(config, tiny_model):
@@ -70,6 +124,71 @@ def test_sar_uses_locked_sam_sgd_profile(config, tiny_model):
         for parameter_name in ("weight", "bias")
     }
     assert set(method.trainable_parameter_names()) == expected
+
+
+def test_cotta_uses_locked_adam_full_model_profile(config, tiny_model):
+    method = build_method(
+        "cotta", deepcopy(tiny_model), method_config(config, "cotta"), config["tta"], torch.device("cpu")
+    )
+    assert isinstance(method.optimizer, torch.optim.Adam)
+    assert len(method.optimizer.param_groups) == 1
+    group = method.optimizer.param_groups[0]
+    assert group["lr"] == pytest.approx(7.5e-6)
+    assert group["betas"] == pytest.approx((0.9, 0.999))
+    assert group["weight_decay"] == pytest.approx(0.0)
+    assert set(method.trainable_parameter_names()) == {
+        name for name, _ in method.model.named_parameters()
+    }
+    assert not method.teacher.training
+    assert not method.anchor.training
+
+
+def test_cotta_augmentation_enumerates_flip_views_and_reuses_standard_logits(images):
+    class PointwiseTeacher(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def forward(self, value):
+            self.calls += 1
+            return {"logits": torch.cat([value, value * 2.0], dim=1)}
+
+    teacher = PointwiseTeacher()
+    standard = torch.cat([images[:2], images[:2] * 2.0], dim=1)
+    ensemble = teacher_augmentation_ensemble(
+        teacher, images[:2], scales=[1.0], flips=[False, True], standard_logits=standard
+    )
+    assert teacher.calls == 1
+    assert torch.equal(ensemble, standard)
+
+
+def test_cotta_confidence_gate_is_applied_per_slice(config, tiny_model, images, monkeypatch):
+    import importlib
+
+    cotta_module = importlib.import_module("tta_methods.cotta.method")
+    method = build_method(
+        "cotta", deepcopy(tiny_model), method_config(config, "cotta"), config["tta"], torch.device("cpu")
+    )
+
+    def anchor_forward(value):
+        logits = torch.zeros(value.shape[0], 4, value.shape[-2], value.shape[-1])
+        logits[0, 0] = 100.0
+        return {"logits": logits}
+
+    method.anchor.forward = anchor_forward
+    observed = {}
+
+    def fake_ensemble(teacher, value, scales, flips, standard_logits=None):
+        observed["batch_size"] = value.shape[0]
+        observed["views"] = len(scales) * len(flips)
+        return standard_logits
+
+    monkeypatch.setattr(cotta_module, "teacher_augmentation_ensemble", fake_ensemble)
+    _, low_confidence, confidence = method._teacher_target(images[:2])
+    assert confidence[0] > 0.99
+    assert confidence[1] == pytest.approx(0.25)
+    assert torch.equal(low_confidence, torch.tensor([False, True]))
+    assert observed == {"batch_size": 1, "views": 2}
 
 
 def test_sam_first_step_only_perturbs_and_second_step_uses_sgd_momentum():

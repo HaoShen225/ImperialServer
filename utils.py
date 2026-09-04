@@ -53,10 +53,11 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
 
     method_keys = {
         "source": {"profile_verified", "profile_kind", "method_seed"},
+        "tbn": {"profile_verified", "profile_kind", "method_seed", "update_scope", "bn_policy"},
         "tent": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay"},
         "eata": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "entropy_margin_factor", "redundancy_margin", "probability_momentum", "descriptor", "fisher_path", "fisher_samples", "fisher_alpha"},
         "sar": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "entropy_margin_factor", "rho", "recovery_ema", "recovery_threshold"},
-        "cotta": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "head_lr_multiplier", "momentum", "weight_decay", "teacher_momentum", "confidence_gate", "restore_probability", "augmentation_scales", "horizontal_flip_probability"},
+        "cotta": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "beta1", "beta2", "weight_decay", "teacher_momentum", "confidence_gate", "restore_probability", "augmentation_scales", "augmentation_flips"},
         "rotta": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "optimizer", "lr", "beta", "weight_decay", "teacher_nu", "rbn_alpha", "memory_capacity", "update_frequency", "memory_category_key", "lambda_timeliness", "lambda_uncertainty"},
         "roid": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "probability_momentum", "temperature", "source_weight_momentum", "consistency", "prior_correction"},
         "deyo": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "entropy_margin_factor", "entropy_weight_margin_factor", "plpd_threshold", "patch_grid", "foreground_only"},
@@ -66,6 +67,18 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         if name not in cfg["methods"]:
             raise ValueError(f"Missing method configuration: {name}")
         _reject_unknown_keys(cfg["methods"][name], allowed, f"methods.{name}")
+
+    cotta = cfg["methods"]["cotta"]
+    if cotta["profile_kind"] != "official_segmentation_mms_adapted":
+        raise ValueError("CoTTA must use the locked official_segmentation_mms_adapted profile")
+    if cotta["optimizer"] != "adam":
+        raise ValueError("The locked CoTTA profile requires Adam")
+    if [float(value) for value in cotta["augmentation_scales"]] != [
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]:
+        raise ValueError("The locked CoTTA profile requires the official seven scales")
+    if [bool(value) for value in cotta["augmentation_flips"]] != [False, True]:
+        raise ValueError("The locked CoTTA profile requires unflipped and flipped views")
 
     if cfg["evaluation"]["grid"] != "processed_256":
         raise ValueError("This locked profile supports only processed_256 evaluation")

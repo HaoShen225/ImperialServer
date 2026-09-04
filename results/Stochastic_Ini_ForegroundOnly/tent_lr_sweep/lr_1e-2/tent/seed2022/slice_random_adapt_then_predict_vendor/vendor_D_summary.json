@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.7471404802458073,
+      "ci95_low": 0.6636067254514751,
+      "mean": 0.705108355593395,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_macro": {
+      "ci95_high": 0.6962674829735955,
+      "ci95_low": 0.6421906292785433,
+      "mean": 0.6699103526054644,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_myo": {
+      "ci95_high": 0.6935471459342101,
+      "ci95_low": 0.6581886103262526,
+      "mean": 0.6759086411504863,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "dice_rv": {
+      "ci95_high": 0.6632083798427902,
+      "ci95_low": 0.5939022930313612,
+      "mean": 0.6287140610725118,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 97.8836017143405,
+      "ci95_low": 69.45478328223525,
+      "mean": 83.84818787968123,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 94.39979430384834,
+      "ci95_low": 70.32596886910417,
+      "mean": 82.35330929600711,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 73.81039763195169,
+      "ci95_low": 51.04694307465256,
+      "mean": 62.365395359322065,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 114.84645143604803,
+      "ci95_low": 86.93717707228602,
+      "mean": 100.84634464901806,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 835
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.7601766012059435,
+      "ci95_low": 0.6763501304871186,
+      "mean": 0.719463551753685,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 810
+    },
+    "dice_macro": {
+      "ci95_high": 0.7252296435082002,
+      "ci95_low": 0.6758754727588508,
+      "mean": 0.7014758647776685,
+      "n_class_slice_pairs": 2331,
+      "n_patients": 50
+    },
+    "dice_myo": {
+      "ci95_high": 0.697060608971066,
+      "ci95_low": 0.660579311487193,
+      "mean": 0.6787755606754893,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 830
+    },
+    "dice_rv": {
+      "ci95_high": 0.7368622272948366,
+      "ci95_low": 0.6748224669869097,
+      "mean": 0.7061884819038314,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 691
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 92.37657380026302,
+      "ci95_low": 63.81909941230771,
+      "mean": 77.9770026788101,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 810
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 79.77847974933444,
+      "ci95_low": 56.86920332445152,
+      "mean": 68.33341062820669,
+      "n_class_slice_pairs": 2331,
+      "n_patients": 50
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 72.50384500380466,
+      "ci95_low": 49.7191010812344,
+      "mean": 61.00314131495587,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 830
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 78.55028053429696,
+      "ci95_low": 53.65162642962037,
+      "mean": 66.0200878908541,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 691
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

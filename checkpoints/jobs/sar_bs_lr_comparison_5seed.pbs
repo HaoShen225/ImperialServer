@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#PBS -N mms_sar_bs_cmp
+#PBS -q v1_gpu72
+#PBS -J 0-9%5
+#PBS -l select=1:ncpus=4:mem=32gb:ngpus=1:gpu_type=L40S
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o /rds/general/user/hs225/home/mms_TTA/checkpoints/logs/Stochastic_Ini_ForegroundOnly/dual_protocol_patient_bs8_slice_bs4/adaptive_lr_1e-3/sar_array_bootstrap.log
+
+set -euo pipefail
+
+PROJECT_DIR="/rds/general/user/hs225/home/mms_TTA"
+PYTHON_BIN="/rds/general/user/hs225/home/miniforge3/envs/TTA/bin/python"
+RESULTS_ROOT="${PROJECT_DIR}/results/Stochastic_Ini_ForegroundOnly/dual_protocol_patient_bs8_slice_bs4/adaptive_lr_1e-3"
+LOG_ROOT="${PROJECT_DIR}/checkpoints/logs/Stochastic_Ini_ForegroundOnly/dual_protocol_patient_bs8_slice_bs4/adaptive_lr_1e-3/sar"
+TASK_INDEX="${PBS_ARRAY_INDEX:?PBS_ARRAY_INDEX is required}"
+cd "${PROJECT_DIR}"
+
+read -r SEED PROTOCOL < <(
+  "${PYTHON_BIN}" - "${TASK_INDEX}" <<'PY'
+import sys
+from run_sar_bs_comparison import resolve_array_index
+
+seed, protocol = resolve_array_index(int(sys.argv[1]))
+print(seed, protocol)
+PY
+)
+
+if [[ "${PROTOCOL}" == "patient_volume" ]]; then
+  BATCH_SIZE=8
+  RUN_DIR="adapt_then_predict_vendor"
+else
+  BATCH_SIZE=4
+  RUN_DIR="slice_random_adapt_then_predict_vendor"
+fi
+
+LOG_DIR="${LOG_ROOT}/${PROTOCOL}"
+JOB_TAG="${PBS_JOBID//\//_}"
+LOG_FILE="${LOG_DIR}/seed${SEED}_${JOB_TAG}.log"
+RESULT_DIR="${RESULTS_ROOT}/sar/seed${SEED}/${RUN_DIR}"
+mkdir -p "${LOG_DIR}"
+exec >"${LOG_FILE}" 2>&1
+
+if [[ -e "${RESULT_DIR}" ]]; then
+  echo "Refusing to overwrite existing SAR comparison result: ${RESULT_DIR}" >&2
+  exit 3
+fi
+
+module load GCC/11.3.0
+module load CUDA/11.8.0
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export PYTHONUNBUFFERED=1
+
+echo "[TASK] method=sar protocol=${PROTOCOL} batch_size=${BATCH_SIZE} lr=1e-3 seed=${SEED} job_id=${PBS_JOBID} host=$(hostname) started=$(date --iso-8601=seconds)"
+"${PYTHON_BIN}" - <<'PY'
+import torch
+
+if not torch.cuda.is_available():
+    raise RuntimeError("CUDA is unavailable inside the allocated PBS GPU job")
+print("[CUDA]", torch.cuda.get_device_name(0), "torch=", torch.__version__, "runtime=", torch.version.cuda)
+PY
+
+"${PYTHON_BIN}" run_sar_bs_comparison.py \
+  --config config.yaml \
+  --source-seed "${SEED}" \
+  --stream-mode "${PROTOCOL}" \
+  --vendors B C D \
+  --results-root "${RESULTS_ROOT}" \
+  --device cuda
+
+"${PYTHON_BIN}" validate_sar_bs_comparison.py \
+  --config config.yaml \
+  --source-seed "${SEED}" \
+  --stream-mode "${PROTOCOL}" \
+  --results-root "${RESULTS_ROOT}"
+
+echo "[TASK] method=sar protocol=${PROTOCOL} batch_size=${BATCH_SIZE} lr=1e-3 seed=${SEED} completed=$(date --iso-8601=seconds)"

@@ -1,0 +1,50 @@
+{
+  "dice_lv": {
+    "ci95_high": 0.0,
+    "ci95_low": 0.0,
+    "mean": 0.0,
+    "n_patients": 125
+  },
+  "dice_macro": {
+    "ci95_high": 0.0,
+    "ci95_low": 0.0,
+    "mean": 0.0,
+    "n_patients": 125
+  },
+  "dice_myo": {
+    "ci95_high": 0.0,
+    "ci95_low": 0.0,
+    "mean": 0.0,
+    "n_patients": 125
+  },
+  "dice_rv": {
+    "ci95_high": 0.0,
+    "ci95_low": 0.0,
+    "mean": 0.0,
+    "n_patients": 125
+  },
+  "hd95_px_lv": {
+    "ci95_high": 360.708029921922,
+    "ci95_low": 360.6940521795237,
+    "mean": 360.6999115011438,
+    "n_patients": 125
+  },
+  "hd95_px_macro": {
+    "ci95_high": 360.70594151311167,
+    "ci95_low": 359.7339025019052,
+    "mean": 360.37917267265436,
+    "n_patients": 125
+  },
+  "hd95_px_myo": {
+    "ci95_high": 360.70594151311167,
+    "ci95_low": 357.80946953096884,
+    "mean": 359.7376950156756,
+    "n_patients": 125
+  },
+  "hd95_px_rv": {
+    "ci95_high": 360.708029921922,
+    "ci95_low": 360.6940521795237,
+    "mean": 360.6999115011438,
+    "n_patients": 125
+  }
+}

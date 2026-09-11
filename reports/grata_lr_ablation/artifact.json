@@ -1,0 +1,906 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "GraTA 学习率消融结果",
+    "description": "M&Ms A→B/C/D、五个随机初始化 backbone、病人随机与切片随机双协议的 GraTA 学习率扫描。",
+    "generatedAt": "2026-09-08T21:36:23Z",
+    "cards": [
+      {
+        "id": "patient_best",
+        "description": "病人随机协议下 B/C/D 等权平均的最佳五 seed Dice。",
+        "dataset": "headline",
+        "sourceId": "grata_lr_sweep_results",
+        "metrics": [
+          {
+            "label": "病人协议最佳 Dice（β=1e-3）",
+            "field": "patient_best_dice",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "slice_best",
+        "description": "切片随机协议 all_slices 口径下 B/C/D 等权平均的最佳五 seed Dice。",
+        "dataset": "headline",
+        "sourceId": "grata_lr_sweep_results",
+        "metrics": [
+          {
+            "label": "切片协议最佳 Dice（β=1e-3）",
+            "field": "slice_best_dice",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "coverage",
+        "description": "完整生成 run_manifest 且任务日志内通过验证的学习率×seed×协议组合。",
+        "dataset": "headline",
+        "sourceId": "grata_lr_sweep_results",
+        "metrics": [
+          {
+            "label": "验证完成的组合",
+            "field": "validated_combinations",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "dice_lr_curve",
+        "title": "双协议跨 Vendor Dice 随学习率变化",
+        "subtitle": "五个 source seed；B/C/D 等权；横轴为 log10 β，精确均值与标准差见下表。",
+        "intent": "comparison",
+        "question": "哪一个 GraTA base/max learning rate 在两种协议下最稳健？",
+        "rationale": "对数学习率是有序连续变量；双折线同时显示共同峰值与高学习率失稳。",
+        "comparisonContext": {
+          "grain": "protocol × learning rate",
+          "unit": "macro Dice",
+          "normalization": "每个 seed 内 B/C/D 等权平均，再跨五 seed 求均值"
+        },
+        "type": "line",
+        "dataset": "lr_curve",
+        "sourceId": "grata_lr_sweep_results",
+        "encodings": {
+          "x": {
+            "field": "log10_beta",
+            "type": "quantitative",
+            "label": "log10 β"
+          },
+          "y": {
+            "field": "dice",
+            "type": "quantitative",
+            "label": "Macro Dice",
+            "format": "number"
+          },
+          "color": {
+            "field": "protocol",
+            "type": "nominal",
+            "label": "测试流协议"
+          },
+          "lineStyle": {
+            "field": "protocol",
+            "type": "nominal",
+            "label": "测试流协议"
+          },
+          "tooltip": [
+            {
+              "field": "beta_label",
+              "type": "text",
+              "label": "β"
+            },
+            {
+              "field": "dice_sd",
+              "type": "quantitative",
+              "label": "跨 seed SD",
+              "format": "number"
+            },
+            {
+              "field": "hd95",
+              "type": "quantitative",
+              "label": "跨 Vendor HD95",
+              "format": "number"
+            }
+          ]
+        },
+        "xAxisTitle": "log10 β",
+        "yAxisTitle": "Macro Dice",
+        "valueFormat": "number",
+        "layout": "full",
+        "labels": {
+          "values": "endpoints"
+        },
+        "legend": {
+          "position": "bottom",
+          "sort": "spec",
+          "title": "测试流协议"
+        },
+        "palette": {
+          "kind": "categorical",
+          "name": "blue-orange"
+        },
+        "settings": {
+          "showPoints": "always",
+          "sort": "ascending"
+        },
+        "surface": {
+          "surface": "explorer",
+          "interactiveLegend": true,
+          "viewMode": "both"
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "patient_results",
+        "title": "病人随机协议学习率扫描",
+        "subtitle": "BS=4；每个单元格为五个 source seed 的均值 ± 样本标准差。",
+        "dataset": "patient_results",
+        "sourceId": "grata_lr_sweep_results",
+        "defaultSort": {
+          "field": "beta",
+          "direction": "asc"
+        },
+        "layout": "full",
+        "columns": [
+          {
+            "field": "beta",
+            "label": "β（配置 LR）",
+            "format": "number"
+          },
+          {
+            "field": "vendor_b_dice",
+            "label": "Vendor B Dice",
+            "type": "text"
+          },
+          {
+            "field": "vendor_c_dice",
+            "label": "Vendor C Dice",
+            "type": "text"
+          },
+          {
+            "field": "vendor_d_dice",
+            "label": "Vendor D Dice",
+            "type": "text"
+          },
+          {
+            "field": "avg_dice",
+            "label": "B/C/D 等权 Dice",
+            "type": "text"
+          },
+          {
+            "field": "avg_hd95",
+            "label": "B/C/D 等权 HD95 (px)",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "slice_results",
+        "title": "切片随机协议学习率扫描",
+        "subtitle": "BS=8；all_slices 逐切片等权口径；每个单元格为五个 source seed 的均值 ± 样本标准差。",
+        "dataset": "slice_results",
+        "sourceId": "grata_lr_sweep_results",
+        "defaultSort": {
+          "field": "beta",
+          "direction": "asc"
+        },
+        "layout": "full",
+        "columns": [
+          {
+            "field": "beta",
+            "label": "β（配置 LR）",
+            "format": "number"
+          },
+          {
+            "field": "vendor_b_dice",
+            "label": "Vendor B Dice",
+            "type": "text"
+          },
+          {
+            "field": "vendor_c_dice",
+            "label": "Vendor C Dice",
+            "type": "text"
+          },
+          {
+            "field": "vendor_d_dice",
+            "label": "Vendor D Dice",
+            "type": "text"
+          },
+          {
+            "field": "avg_dice",
+            "label": "B/C/D 等权 Dice",
+            "type": "text"
+          },
+          {
+            "field": "avg_hd95",
+            "label": "B/C/D 等权 HD95 (px)",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "effective_lr",
+        "title": "GraTA 动态学习率与参数漂移诊断",
+        "subtitle": "实际 LR 由梯度余弦动态缩放；漂移为每个 Vendor 流末尾相对初始 BN affine 的 L2 距离。",
+        "dataset": "diagnostics",
+        "sourceId": "grata_lr_sweep_results",
+        "defaultSort": {
+          "field": "beta",
+          "direction": "asc"
+        },
+        "layout": "full",
+        "columns": [
+          {
+            "field": "protocol",
+            "label": "协议",
+            "type": "text"
+          },
+          {
+            "field": "beta",
+            "label": "β",
+            "format": "number"
+          },
+          {
+            "field": "effective_lr_mean_label",
+            "label": "平均实际 LR",
+            "type": "text"
+          },
+          {
+            "field": "effective_lr_fraction_label",
+            "label": "实际 LR / β",
+            "type": "text"
+          },
+          {
+            "field": "gradient_cosine_mean_label",
+            "label": "平均梯度余弦",
+            "type": "text"
+          },
+          {
+            "field": "endpoint_drift_mean_label",
+            "label": "平均末端漂移",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "grata_lr_sweep_results",
+        "label": "GraTA 学习率消融结果文件",
+        "path": "reports/grata_lr_ablation/aggregation.sql",
+        "query": {
+          "engine": "sqlite",
+          "language": "sql",
+          "description": "Python loader 将 180 个 Vendor summary 的主指标装入内存表 grata_summary_metrics；该 SQL 按相同 seed 先跨 Vendor 等权平均，再汇总五个 seed。",
+          "sql": "WITH vendor_stats AS (\n    SELECT\n        protocol,\n        lr,\n        vendor,\n        AVG(dice) AS dice_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(dice * dice) - SUM(dice) * SUM(dice) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS dice_sd,\n        AVG(hd95) AS hd95_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(hd95 * hd95) - SUM(hd95) * SUM(hd95) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS hd95_sd\n    FROM grata_summary_metrics\n    GROUP BY protocol, lr, vendor\n),\nseed_cross_vendor AS (\n    SELECT\n        protocol,\n        lr,\n        seed,\n        AVG(dice) AS dice,\n        AVG(hd95) AS hd95\n    FROM grata_summary_metrics\n    GROUP BY protocol, lr, seed\n),\ncross_vendor_stats AS (\n    SELECT\n        protocol,\n        lr,\n        AVG(dice) AS dice_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(dice * dice) - SUM(dice) * SUM(dice) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS dice_sd,\n        AVG(hd95) AS hd95_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(hd95 * hd95) - SUM(hd95) * SUM(hd95) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS hd95_sd\n    FROM seed_cross_vendor\n    GROUP BY protocol, lr\n)\nSELECT\n    cross.protocol,\n    cross.lr,\n    b.dice_mean AS vendor_b_dice_mean,\n    b.dice_sd AS vendor_b_dice_sd,\n    c.dice_mean AS vendor_c_dice_mean,\n    c.dice_sd AS vendor_c_dice_sd,\n    d.dice_mean AS vendor_d_dice_mean,\n    d.dice_sd AS vendor_d_dice_sd,\n    cross.dice_mean AS avg_dice_mean,\n    cross.dice_sd AS avg_dice_sd,\n    cross.hd95_mean AS avg_hd95_mean,\n    cross.hd95_sd AS avg_hd95_sd\nFROM cross_vendor_stats AS cross\nJOIN vendor_stats AS b\n  ON b.protocol = cross.protocol AND b.lr = cross.lr AND b.vendor = 'B'\nJOIN vendor_stats AS c\n  ON c.protocol = cross.protocol AND c.lr = cross.lr AND c.vendor = 'C'\nJOIN vendor_stats AS d\n  ON d.protocol = cross.protocol AND d.lr = cross.lr AND d.vendor = 'D'\nORDER BY\n    CASE cross.protocol WHEN 'patient_volume' THEN 0 ELSE 1 END,\n    cross.lr;\n",
+          "executed_at": "2026-09-08T21:36:23Z",
+          "tables_used": [
+            "grata_summary_metrics"
+          ],
+          "filters": [
+            "method=grata",
+            "source_seeds=2022..2026",
+            "target_vendors=B,C,D",
+            "slice_filter=manifest_has_fg_equals_1",
+            "learning_rates=1e-5,1e-4,1e-3,1e-2,1e-1,1"
+          ],
+          "metric_definitions": {
+            "patient_volume Dice": "每个 Vendor 内按病人汇总的三前景类 macro Dice；报告值为五个 seed 的均值±样本标准差。",
+            "slice_random Dice": "all_slices 视图下逐切片等权的三前景类 macro Dice；报告值为五个 seed 的均值±样本标准差。",
+            "cross-vendor average": "每个 seed 内对 B/C/D 三个 Vendor 的 point estimate 等权平均，再对五个 seed 计算均值与样本标准差。",
+            "HD95": "病人协议使用 hd95_px_macro；切片协议使用 all_slices.hd95_2d_px_macro；单位为 processed 256 网格上的像素。"
+          }
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# GraTA 学习率消融结果"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 技术结论：β=1e-3 是双协议共同的稳健最优点\n\n病人随机协议的最佳 B/C/D 等权 Dice 为 **0.7582 ± 0.0207**，HD95 为 **46.54 ± 13.61 px**；切片随机协议的最佳 Dice 为 **0.7062 ± 0.0243**，HD95 为 **61.25 ± 14.11 px**。相对 β=1e-4，前者 Dice 提升 **1.16 个百分点**、HD95 降低 **8.31 px**；后者 Dice 提升 **0.81 个百分点**、HD95 降低 **4.10 px**。β≥1e-2 后总体性能急剧下降，因此不应把某个单独 Vendor 的局部峰值当作全局配置。"
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "patient_best",
+          "slice_best",
+          "coverage"
+        ]
+      },
+      {
+        "id": "curve_finding",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 两种协议共享 1e-3 峰值，并在 1e-2 后快速分化或崩溃\n\n曲线用于观察整体形状：1e-5 到 1e-4 基本平坦，1e-3 带来一致改善；继续放大至 1e-2 后，病人协议整体失稳，切片协议也因 B/D 崩溃而明显下降。"
+      },
+      {
+        "id": "curve",
+        "type": "chart",
+        "chartId": "dice_lr_curve",
+        "layout": "full"
+      },
+      {
+        "id": "patient_finding",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 病人随机协议在 1e-3 达峰，1e-2 已发生严重失稳\n\nβ=1e-3 在 B、C、D 三个 Vendor 上都取得各自最高的五 seed 平均 Dice。相比 β=1e-4，五个 seed 的跨 Vendor Dice 均改善；β=1e-2 时 B/D 首先崩溃，β=1e-1 与 1 接近失效。"
+      },
+      {
+        "id": "patient_table",
+        "type": "table",
+        "tableId": "patient_results",
+        "layout": "full"
+      },
+      {
+        "id": "slice_finding",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 切片随机协议同样以 1e-3 最稳健，但 Vendor C 在 1e-2 有局部例外\n\n全局平均仍在 β=1e-3 达峰。Vendor C 在 β=1e-2 的 Dice 升至 0.7106 ± 0.0237，但同时 Vendor B/D 分别跌至 0.4462 与 0.4547；该点反映强烈的域依赖，不能作为统一超参数。"
+      },
+      {
+        "id": "slice_table",
+        "type": "table",
+        "tableId": "slice_results",
+        "layout": "full"
+      },
+      {
+        "id": "dynamic_finding",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 配置 LR 不是实际步长：1e-3 的平均实际 LR 约为 β 的两成\n\n在 β=1e-3 时，病人协议平均实际 LR 为 **1.747e-04**，切片协议为 **1.923e-04**。GraTA 使用 `effective_lr = β × (cos+1)^2 / 4`，所以扫描的是最大尺度 β；高 β 即使被动态门控，累积 BN affine 漂移仍会快速放大并导致分割退化。"
+      },
+      {
+        "id": "dynamic_table",
+        "type": "table",
+        "tableId": "effective_lr",
+        "layout": "full"
+      },
+      {
+        "id": "scope",
+        "type": "markdown",
+        "body": "## 口径与数据范围\n\n- 源域：M&Ms Vendor A；目标域：Vendor B/C/D。\n- Backbone：随机初始化训练得到的 source seeds 2022–2026；目标病例/切片顺序 seed 与 checkpoint seed 相同。\n- 病人随机：BS=4，patient-volume 流，指标为病人级三前景类 macro Dice 与 3D HD95。\n- 切片随机：BS=8，all_slices 逐切片等权，指标为 2D macro Dice 与 2D HD95。\n- 两种协议都只加载 `manifest_has_fg_equals_1` 的切片。跨 Vendor 总分为 B/C/D 等权，不按样本量加权。"
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 聚合与验证方法\n\n每个 LR×seed×协议先读取三个 Vendor 的 summary point estimate，并在 seed 内对 B/C/D 等权平均；随后对五个 seed 报告均值与样本标准差。独立核查 60/60 个 manifest、180 个 Vendor summary、协议/stream/checkpoint 哈希、LR 与 seed 字段，并扫描任务日志中的 `[VALIDATED]` 和错误标记。"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 限制与稳健性判断\n\n**可分享，但需保留口径限定。** 五个 backbone seed 给出了初始化不确定性，但本扫描没有为每个 checkpoint 重复多个独立 TTA augmentation seed，因此未单独量化 GraTA 强增强随机性的方差。PBS 的历史条目已从调度器中清理；任务完成性由 60 个落盘 manifest、180 个 summary 和 60 个 `[VALIDATED]` 日志交叉确认。切片协议与病人协议使用不同聚合粒度和 HD95 定义，不应直接把两张表的绝对分数解释成协议优劣。"
+      },
+      {
+        "id": "recommendation",
+        "type": "markdown",
+        "sourceId": "grata_lr_sweep_results",
+        "body": "## 建议\n\n1. 后续 GraTA 主实验统一采用 **β=1e-3**；在论文或配置中同时写明这是动态公式的 base/max LR，而非每步实际 LR。\n2. 若要做 Vendor-specific oracle，可单独记录切片协议 Vendor C 的 β=1e-2，但不能用于无监督统一模型选择。\n3. 正式 SoTA 对比应使用预先固定的 β=1e-3，并保留 β=1e-4 作为保守敏感性分析。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## 下一步问题\n\n- β=1e-3 相对 Source/TBN/TEnt/SAR/CoTTA 的增益是否超过对应五 seed 方差？\n- 将 method seed 与 checkpoint seed 解耦并重复 GraTA 强增强后，最优点是否仍稳定在 1e-3？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-08T21:36:23Z",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "patient_best_dice": 0.7582,
+          "slice_best_dice": 0.7062,
+          "validated_combinations": 60
+        }
+      ],
+      "patient_results": [
+        {
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "vendor_b_dice": "0.7510 ± 0.0221",
+          "vendor_c_dice": "0.7304 ± 0.0204",
+          "vendor_d_dice": "0.7529 ± 0.0122",
+          "avg_dice": "0.7448 ± 0.0177",
+          "avg_dice_mean": 0.7447786741138132,
+          "avg_dice_sd": 0.01769494982716632,
+          "avg_hd95": "55.65 ± 10.73",
+          "avg_hd95_mean": 55.651133236539486,
+          "avg_hd95_sd": 10.73406690544865
+        },
+        {
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "vendor_b_dice": "0.7541 ± 0.0230",
+          "vendor_c_dice": "0.7321 ± 0.0205",
+          "vendor_d_dice": "0.7537 ± 0.0124",
+          "avg_dice": "0.7466 ± 0.0181",
+          "avg_dice_mean": 0.7466442545958352,
+          "avg_dice_sd": 0.01806559125995044,
+          "avg_hd95": "54.85 ± 11.00",
+          "avg_hd95_mean": 54.84969605620946,
+          "avg_hd95_sd": 10.995403827717285
+        },
+        {
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "vendor_b_dice": "0.7727 ± 0.0294",
+          "vendor_c_dice": "0.7456 ± 0.0217",
+          "vendor_d_dice": "0.7563 ± 0.0179",
+          "avg_dice": "0.7582 ± 0.0207",
+          "avg_dice_mean": 0.7582079807358878,
+          "avg_dice_sd": 0.020744569037166656,
+          "avg_hd95": "46.54 ± 13.61",
+          "avg_hd95_mean": 46.535263441719096,
+          "avg_hd95_sd": 13.609663236083753
+        },
+        {
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "vendor_b_dice": "0.2548 ± 0.1411",
+          "vendor_c_dice": "0.5558 ± 0.0979",
+          "vendor_d_dice": "0.3205 ± 0.1332",
+          "avg_dice": "0.3771 ± 0.1087",
+          "avg_dice_mean": 0.37705931866178255,
+          "avg_dice_sd": 0.10865077494639896,
+          "avg_hd95": "140.12 ± 47.14",
+          "avg_hd95_mean": 140.11525238896695,
+          "avg_hd95_sd": 47.139206701353345
+        },
+        {
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "vendor_b_dice": "0.0420 ± 0.0527",
+          "vendor_c_dice": "0.0620 ± 0.0439",
+          "vendor_d_dice": "0.0609 ± 0.0444",
+          "avg_dice": "0.0550 ± 0.0465",
+          "avg_dice_mean": 0.05497969131295163,
+          "avg_dice_sd": 0.046530777126021695,
+          "avg_hd95": "293.65 ± 106.87",
+          "avg_hd95_mean": 293.64658769690664,
+          "avg_hd95_sd": 106.8704722140643
+        },
+        {
+          "beta": 1.0,
+          "beta_label": "1",
+          "vendor_b_dice": "0.0007 ± 0.0009",
+          "vendor_c_dice": "0.0068 ± 0.0058",
+          "vendor_d_dice": "0.0044 ± 0.0025",
+          "avg_dice": "0.0040 ± 0.0021",
+          "avg_dice_mean": 0.003976615000680016,
+          "avg_dice_sd": 0.0020843804196651844,
+          "avg_hd95": "355.05 ± 4.27",
+          "avg_hd95_mean": 355.0525107337322,
+          "avg_hd95_sd": 4.269998827650835
+        }
+      ],
+      "slice_results": [
+        {
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "vendor_b_dice": "0.7090 ± 0.0287",
+          "vendor_c_dice": "0.6873 ± 0.0228",
+          "vendor_d_dice": "0.6946 ± 0.0170",
+          "avg_dice": "0.6969 ± 0.0226",
+          "avg_dice_mean": 0.6969316475684041,
+          "avg_dice_sd": 0.022625447813088825,
+          "avg_hd95": "65.87 ± 12.26",
+          "avg_hd95_mean": 65.87212393756502,
+          "avg_hd95_sd": 12.260459098026134
+        },
+        {
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "vendor_b_dice": "0.7108 ± 0.0292",
+          "vendor_c_dice": "0.6886 ± 0.0228",
+          "vendor_d_dice": "0.6949 ± 0.0170",
+          "avg_dice": "0.6981 ± 0.0228",
+          "avg_dice_mean": 0.6981010942020444,
+          "avg_dice_sd": 0.022755973126455237,
+          "avg_hd95": "65.34 ± 12.43",
+          "avg_hd95_mean": 65.34248520878398,
+          "avg_hd95_sd": 12.426714709098139
+        },
+        {
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "vendor_b_dice": "0.7246 ± 0.0345",
+          "vendor_c_dice": "0.6984 ± 0.0235",
+          "vendor_d_dice": "0.6956 ± 0.0172",
+          "avg_dice": "0.7062 ± 0.0243",
+          "avg_dice_mean": 0.706211959923311,
+          "avg_dice_sd": 0.024330921913495014,
+          "avg_hd95": "61.25 ± 14.11",
+          "avg_hd95_mean": 61.24720156195749,
+          "avg_hd95_sd": 14.108373494240135
+        },
+        {
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "vendor_b_dice": "0.4462 ± 0.1461",
+          "vendor_c_dice": "0.7106 ± 0.0237",
+          "vendor_d_dice": "0.4547 ± 0.1354",
+          "avg_dice": "0.5372 ± 0.0865",
+          "avg_dice_mean": 0.5371796789903868,
+          "avg_dice_sd": 0.08648593804669262,
+          "avg_hd95": "117.11 ± 27.96",
+          "avg_hd95_mean": 117.11249197554676,
+          "avg_hd95_sd": 27.962899385870337
+        },
+        {
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "vendor_b_dice": "0.1402 ± 0.0712",
+          "vendor_c_dice": "0.1899 ± 0.1256",
+          "vendor_d_dice": "0.1547 ± 0.1227",
+          "avg_dice": "0.1616 ± 0.1055",
+          "avg_dice_mean": 0.16162150981054138,
+          "avg_dice_sd": 0.10552458783911384,
+          "avg_hd95": "269.68 ± 95.11",
+          "avg_hd95_mean": 269.6760508503145,
+          "avg_hd95_sd": 95.10898791053816
+        },
+        {
+          "beta": 1.0,
+          "beta_label": "1",
+          "vendor_b_dice": "0.0725 ± 0.0060",
+          "vendor_c_dice": "0.0685 ± 0.0006",
+          "vendor_d_dice": "0.0707 ± 0.0015",
+          "avg_dice": "0.0706 ± 0.0022",
+          "avg_dice_mean": 0.07057447180411,
+          "avg_dice_sd": 0.002209718270543236,
+          "avg_hd95": "332.41 ± 4.97",
+          "avg_hd95_mean": 332.40995342417636,
+          "avg_hd95_sd": 4.974310858168941
+        }
+      ],
+      "diagnostics": [
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "n_updates": 5380,
+          "effective_lr_mean": 2.0062753529114406e-06,
+          "effective_lr_mean_label": "2.006e-06",
+          "effective_lr_fraction": 0.20062753529114405,
+          "effective_lr_fraction_label": "20.1%",
+          "gradient_cosine_mean": -0.1374665661392775,
+          "gradient_cosine_mean_label": "-0.137",
+          "endpoint_drift_mean": 0.021235985308885576,
+          "endpoint_drift_mean_label": "0.021",
+          "endpoint_drift_max": 0.035322487354278564
+        },
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "n_updates": 5380,
+          "effective_lr_mean": 1.9892774708119065e-05,
+          "effective_lr_mean_label": "1.989e-05",
+          "effective_lr_fraction": 0.19892774708119065,
+          "effective_lr_fraction_label": "19.9%",
+          "gradient_cosine_mean": -0.14188205333378232,
+          "gradient_cosine_mean_label": "-0.142",
+          "endpoint_drift_mean": 0.2091069425145785,
+          "endpoint_drift_mean_label": "0.209",
+          "endpoint_drift_max": 0.35431358218193054
+        },
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "n_updates": 5380,
+          "effective_lr_mean": 0.00017466146293410246,
+          "effective_lr_mean_label": "1.747e-04",
+          "effective_lr_fraction": 0.17466146293410245,
+          "effective_lr_fraction_label": "17.5%",
+          "gradient_cosine_mean": -0.20874549835500897,
+          "gradient_cosine_mean_label": "-0.209",
+          "endpoint_drift_mean": 1.7778046290079752,
+          "endpoint_drift_mean_label": "1.778",
+          "endpoint_drift_max": 2.806267023086548
+        },
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "n_updates": 5380,
+          "effective_lr_mean": 0.0026370045931252617,
+          "effective_lr_mean_label": "2.637e-03",
+          "effective_lr_fraction": 0.26370045931252617,
+          "effective_lr_fraction_label": "26.4%",
+          "gradient_cosine_mean": -0.08010452837303045,
+          "gradient_cosine_mean_label": "-0.080",
+          "endpoint_drift_mean": 7.89971071879069,
+          "endpoint_drift_mean_label": "7.900",
+          "endpoint_drift_max": 10.274977684020996
+        },
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "n_updates": 5380,
+          "effective_lr_mean": 0.018756386637089378,
+          "effective_lr_mean_label": "1.876e-02",
+          "effective_lr_fraction": 0.18756386637089376,
+          "effective_lr_fraction_label": "18.8%",
+          "gradient_cosine_mean": -0.2234399519873836,
+          "gradient_cosine_mean_label": "-0.223",
+          "endpoint_drift_mean": 30.101116943359376,
+          "endpoint_drift_mean_label": "30.101",
+          "endpoint_drift_max": 37.324012756347656
+        },
+        {
+          "protocol": "病人随机",
+          "protocol_key": "patient_volume",
+          "beta": 1.0,
+          "beta_label": "1",
+          "n_updates": 5380,
+          "effective_lr_mean": 0.2619446593599668,
+          "effective_lr_mean_label": "2.619e-01",
+          "effective_lr_fraction": 0.2619446593599668,
+          "effective_lr_fraction_label": "26.2%",
+          "gradient_cosine_mean": -0.0525910272229878,
+          "gradient_cosine_mean_label": "-0.053",
+          "endpoint_drift_mean": 234.35204010009767,
+          "endpoint_drift_mean_label": "234.352",
+          "endpoint_drift_max": 341.12481689453125
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "n_updates": 2315,
+          "effective_lr_mean": 2.089885789700615e-06,
+          "effective_lr_mean_label": "2.090e-06",
+          "effective_lr_fraction": 0.20898857897006148,
+          "effective_lr_fraction_label": "20.9%",
+          "gradient_cosine_mean": -0.10125754521920516,
+          "gradient_cosine_mean_label": "-0.101",
+          "endpoint_drift_mean": 0.015053323470056057,
+          "endpoint_drift_mean_label": "0.015",
+          "endpoint_drift_max": 0.027622206136584282
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "n_updates": 2315,
+          "effective_lr_mean": 2.074630756752085e-05,
+          "effective_lr_mean_label": "2.075e-05",
+          "effective_lr_fraction": 0.2074630756752085,
+          "effective_lr_fraction_label": "20.7%",
+          "gradient_cosine_mean": -0.10466306730314082,
+          "gradient_cosine_mean_label": "-0.105",
+          "endpoint_drift_mean": 0.14831771403551103,
+          "endpoint_drift_mean_label": "0.148",
+          "endpoint_drift_max": 0.2685351073741913
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "n_updates": 2315,
+          "effective_lr_mean": 0.0001922632219567213,
+          "effective_lr_mean_label": "1.923e-04",
+          "effective_lr_fraction": 0.1922632219567213,
+          "effective_lr_fraction_label": "19.2%",
+          "gradient_cosine_mean": -0.14074339807292063,
+          "gradient_cosine_mean_label": "-0.141",
+          "endpoint_drift_mean": 1.3145018855730692,
+          "endpoint_drift_mean_label": "1.315",
+          "endpoint_drift_max": 2.26574444770813
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "n_updates": 2315,
+          "effective_lr_mean": 0.002088532192507511,
+          "effective_lr_mean_label": "2.089e-03",
+          "effective_lr_fraction": 0.2088532192507511,
+          "effective_lr_fraction_label": "20.9%",
+          "gradient_cosine_mean": -0.17504705729547734,
+          "gradient_cosine_mean_label": "-0.175",
+          "endpoint_drift_mean": 7.393693415323893,
+          "endpoint_drift_mean_label": "7.394",
+          "endpoint_drift_max": 11.484270095825195
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "n_updates": 2315,
+          "effective_lr_mean": 0.015067299620361236,
+          "effective_lr_mean_label": "1.507e-02",
+          "effective_lr_fraction": 0.15067299620361235,
+          "effective_lr_fraction_label": "15.1%",
+          "gradient_cosine_mean": -0.32444318941072775,
+          "gradient_cosine_mean_label": "-0.324",
+          "endpoint_drift_mean": 28.65430030822754,
+          "endpoint_drift_mean_label": "28.654",
+          "endpoint_drift_max": 41.27958297729492
+        },
+        {
+          "protocol": "切片随机",
+          "protocol_key": "slice_random",
+          "beta": 1.0,
+          "beta_label": "1",
+          "n_updates": 2315,
+          "effective_lr_mean": 0.24446966310907112,
+          "effective_lr_mean_label": "2.445e-01",
+          "effective_lr_fraction": 0.24446966310907112,
+          "effective_lr_fraction_label": "24.4%",
+          "gradient_cosine_mean": -0.07575662091068391,
+          "gradient_cosine_mean_label": "-0.076",
+          "endpoint_drift_mean": 257.5018781026204,
+          "endpoint_drift_mean_label": "257.502",
+          "endpoint_drift_max": 423.99163818359375
+        }
+      ],
+      "lr_curve": [
+        {
+          "log10_beta": -5.0,
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "protocol": "病人随机",
+          "dice": 0.7447786741138132,
+          "dice_sd": 0.01769494982716632,
+          "hd95": 55.651133236539486
+        },
+        {
+          "log10_beta": -5.0,
+          "beta": 1e-05,
+          "beta_label": "1e-5",
+          "protocol": "切片随机",
+          "dice": 0.6969316475684041,
+          "dice_sd": 0.022625447813088825,
+          "hd95": 65.87212393756502
+        },
+        {
+          "log10_beta": -4.0,
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "protocol": "病人随机",
+          "dice": 0.7466442545958352,
+          "dice_sd": 0.01806559125995044,
+          "hd95": 54.84969605620946
+        },
+        {
+          "log10_beta": -4.0,
+          "beta": 0.0001,
+          "beta_label": "1e-4",
+          "protocol": "切片随机",
+          "dice": 0.6981010942020444,
+          "dice_sd": 0.022755973126455237,
+          "hd95": 65.34248520878398
+        },
+        {
+          "log10_beta": -3.0,
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "protocol": "病人随机",
+          "dice": 0.7582079807358878,
+          "dice_sd": 0.020744569037166656,
+          "hd95": 46.535263441719096
+        },
+        {
+          "log10_beta": -3.0,
+          "beta": 0.001,
+          "beta_label": "1e-3",
+          "protocol": "切片随机",
+          "dice": 0.706211959923311,
+          "dice_sd": 0.024330921913495014,
+          "hd95": 61.24720156195749
+        },
+        {
+          "log10_beta": -2.0,
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "protocol": "病人随机",
+          "dice": 0.37705931866178255,
+          "dice_sd": 0.10865077494639896,
+          "hd95": 140.11525238896695
+        },
+        {
+          "log10_beta": -2.0,
+          "beta": 0.01,
+          "beta_label": "1e-2",
+          "protocol": "切片随机",
+          "dice": 0.5371796789903868,
+          "dice_sd": 0.08648593804669262,
+          "hd95": 117.11249197554676
+        },
+        {
+          "log10_beta": -1.0,
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "protocol": "病人随机",
+          "dice": 0.05497969131295163,
+          "dice_sd": 0.046530777126021695,
+          "hd95": 293.64658769690664
+        },
+        {
+          "log10_beta": -1.0,
+          "beta": 0.1,
+          "beta_label": "1e-1",
+          "protocol": "切片随机",
+          "dice": 0.16162150981054138,
+          "dice_sd": 0.10552458783911384,
+          "hd95": 269.6760508503145
+        },
+        {
+          "log10_beta": 0.0,
+          "beta": 1.0,
+          "beta_label": "1",
+          "protocol": "病人随机",
+          "dice": 0.003976615000680016,
+          "dice_sd": 0.0020843804196651844,
+          "hd95": 355.0525107337322
+        },
+        {
+          "log10_beta": 0.0,
+          "beta": 1.0,
+          "beta_label": "1",
+          "protocol": "切片随机",
+          "dice": 0.07057447180411,
+          "dice_sd": 0.002209718270543236,
+          "hd95": 332.40995342417636
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "grata_lr_sweep_results",
+      "label": "GraTA 学习率消融结果文件",
+      "path": "reports/grata_lr_ablation/aggregation.sql",
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Python loader 将 180 个 Vendor summary 的主指标装入内存表 grata_summary_metrics；该 SQL 按相同 seed 先跨 Vendor 等权平均，再汇总五个 seed。",
+        "sql": "WITH vendor_stats AS (\n    SELECT\n        protocol,\n        lr,\n        vendor,\n        AVG(dice) AS dice_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(dice * dice) - SUM(dice) * SUM(dice) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS dice_sd,\n        AVG(hd95) AS hd95_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(hd95 * hd95) - SUM(hd95) * SUM(hd95) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS hd95_sd\n    FROM grata_summary_metrics\n    GROUP BY protocol, lr, vendor\n),\nseed_cross_vendor AS (\n    SELECT\n        protocol,\n        lr,\n        seed,\n        AVG(dice) AS dice,\n        AVG(hd95) AS hd95\n    FROM grata_summary_metrics\n    GROUP BY protocol, lr, seed\n),\ncross_vendor_stats AS (\n    SELECT\n        protocol,\n        lr,\n        AVG(dice) AS dice_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(dice * dice) - SUM(dice) * SUM(dice) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS dice_sd,\n        AVG(hd95) AS hd95_mean,\n        SQRT(\n            MAX(\n                0.0,\n                (SUM(hd95 * hd95) - SUM(hd95) * SUM(hd95) / COUNT(*))\n                / (COUNT(*) - 1)\n            )\n        ) AS hd95_sd\n    FROM seed_cross_vendor\n    GROUP BY protocol, lr\n)\nSELECT\n    cross.protocol,\n    cross.lr,\n    b.dice_mean AS vendor_b_dice_mean,\n    b.dice_sd AS vendor_b_dice_sd,\n    c.dice_mean AS vendor_c_dice_mean,\n    c.dice_sd AS vendor_c_dice_sd,\n    d.dice_mean AS vendor_d_dice_mean,\n    d.dice_sd AS vendor_d_dice_sd,\n    cross.dice_mean AS avg_dice_mean,\n    cross.dice_sd AS avg_dice_sd,\n    cross.hd95_mean AS avg_hd95_mean,\n    cross.hd95_sd AS avg_hd95_sd\nFROM cross_vendor_stats AS cross\nJOIN vendor_stats AS b\n  ON b.protocol = cross.protocol AND b.lr = cross.lr AND b.vendor = 'B'\nJOIN vendor_stats AS c\n  ON c.protocol = cross.protocol AND c.lr = cross.lr AND c.vendor = 'C'\nJOIN vendor_stats AS d\n  ON d.protocol = cross.protocol AND d.lr = cross.lr AND d.vendor = 'D'\nORDER BY\n    CASE cross.protocol WHEN 'patient_volume' THEN 0 ELSE 1 END,\n    cross.lr;\n",
+        "executed_at": "2026-09-08T21:36:23Z",
+        "tables_used": [
+          "grata_summary_metrics"
+        ],
+        "filters": [
+          "method=grata",
+          "source_seeds=2022..2026",
+          "target_vendors=B,C,D",
+          "slice_filter=manifest_has_fg_equals_1",
+          "learning_rates=1e-5,1e-4,1e-3,1e-2,1e-1,1"
+        ],
+        "metric_definitions": {
+          "patient_volume Dice": "每个 Vendor 内按病人汇总的三前景类 macro Dice；报告值为五个 seed 的均值±样本标准差。",
+          "slice_random Dice": "all_slices 视图下逐切片等权的三前景类 macro Dice；报告值为五个 seed 的均值±样本标准差。",
+          "cross-vendor average": "每个 seed 内对 B/C/D 三个 Vendor 的 point estimate 等权平均，再对五个 seed 计算均值与样本标准差。",
+          "HD95": "病人协议使用 hd95_px_macro；切片协议使用 all_slices.hd95_2d_px_macro；单位为 processed 256 网格上的像素。"
+        }
+      }
+    }
+  ]
+}

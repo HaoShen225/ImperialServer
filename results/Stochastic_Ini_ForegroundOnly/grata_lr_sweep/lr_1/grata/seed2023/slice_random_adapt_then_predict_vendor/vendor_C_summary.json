@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.02714745825965523,
+      "ci95_low": 0.006571422477648116,
+      "mean": 0.016279056166941964,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_macro": {
+      "ci95_high": 0.08096839374561803,
+      "ci95_low": 0.0580930604455818,
+      "mean": 0.06940513170548387,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_myo": {
+      "ci95_high": 0.011827589401761625,
+      "ci95_low": 0.0030998154715825284,
+      "mean": 0.00707281537630866,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_rv": {
+      "ci95_high": 0.21799776548393493,
+      "ci95_low": 0.1527411583194873,
+      "mean": 0.184863523573201,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 356.7176974523712,
+      "ci95_low": 349.0489672902212,
+      "mean": 353.1351189474535,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 338.93328529421484,
+      "ci95_low": 330.59886003693344,
+      "mean": 334.69825020531397,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 358.9292310472086,
+      "ci95_low": 354.8200639649658,
+      "mean": 357.00148133080046,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 305.42728057506616,
+      "ci95_low": 282.28443594415614,
+      "mean": 293.9581503376879,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.0003725013766226367,
+      "ci95_low": 0.0,
+      "mean": 0.00015248331721970083,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "dice_macro": {
+      "ci95_high": 0.0027180457723388336,
+      "ci95_low": 0.0005742424320998424,
+      "mean": 0.0015851101908579684,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "dice_myo": {
+      "ci95_high": 0.007896902094118592,
+      "ci95_low": 0.0017972321526908241,
+      "mean": 0.004602847255354204,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "dice_rv": {
+      "ci95_high": 0.0,
+      "ci95_low": 0.0,
+      "mean": 0.0,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 360.22259548944106,
+      "ci95_low": 357.15083796194347,
+      "mean": 358.9242192580675,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 360.0552611906734,
+      "ci95_low": 358.02794631692376,
+      "mean": 359.1460741268008,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 359.5904747770705,
+      "ci95_low": 356.02312204736296,
+      "mean": 357.88954471719546,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 360.6244584051393,
+      "ci95_low": 360.6244584051392,
+      "mean": 360.62445840513925,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

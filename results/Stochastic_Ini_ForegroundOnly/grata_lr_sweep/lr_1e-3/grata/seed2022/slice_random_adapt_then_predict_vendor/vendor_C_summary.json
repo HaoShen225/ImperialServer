@@ -1,0 +1,148 @@
+{
+  "aggregation_unit": "slice",
+  "all_slices": {
+    "dice_lv": {
+      "ci95_high": 0.7422996094688783,
+      "ci95_low": 0.6575127429907446,
+      "mean": 0.7011336965624823,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_macro": {
+      "ci95_high": 0.6941890660988819,
+      "ci95_low": 0.6288989311094118,
+      "mean": 0.6627966684914656,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_myo": {
+      "ci95_high": 0.6977011642772488,
+      "ci95_low": 0.6435640052934801,
+      "mean": 0.6717210358253961,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "dice_rv": {
+      "ci95_high": 0.6599709693659436,
+      "ci95_low": 0.5670984374051735,
+      "mean": 0.6155352730865178,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 96.06280953567948,
+      "ci95_low": 71.89387922291888,
+      "mean": 84.18283575294033,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 92.54518329073932,
+      "ci95_low": 69.3718861411059,
+      "mean": 80.9846814445462,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 70.64495040412595,
+      "ci95_low": 49.31313219850791,
+      "mean": 59.89001420262556,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 115.9768881684047,
+      "ci95_low": 82.85282708379827,
+      "mean": 98.88119437807268,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 806
+    }
+  },
+  "confidence_interval": "patient_cluster_bootstrap",
+  "foreground_present": {
+    "dice_lv": {
+      "ci95_high": 0.7518867010284628,
+      "ci95_low": 0.6703852388222934,
+      "mean": 0.7126276915880967,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "dice_macro": {
+      "ci95_high": 0.7303853924363884,
+      "ci95_low": 0.6628210788156771,
+      "mean": 0.6984963758275257,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "dice_myo": {
+      "ci95_high": 0.6993847594000403,
+      "ci95_low": 0.6458015872985279,
+      "mean": 0.6733919836757081,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "dice_rv": {
+      "ci95_high": 0.7574109483047222,
+      "ci95_low": 0.6554600623375464,
+      "mean": 0.7094694522187723,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    },
+    "hd95_2d_px_lv": {
+      "ci95_high": 91.33712012688247,
+      "ci95_low": 67.81366113409028,
+      "mean": 79.65100587339607,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 793
+    },
+    "hd95_2d_px_macro": {
+      "ci95_high": 75.30945946271228,
+      "ci95_low": 54.40674721774447,
+      "mean": 64.9268815210608,
+      "n_class_slice_pairs": 2254,
+      "n_patients": 50
+    },
+    "hd95_2d_px_myo": {
+      "ci95_high": 69.75024688991809,
+      "ci95_low": 48.34969661982652,
+      "mean": 59.14191857028099,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 804
+    },
+    "hd95_2d_px_rv": {
+      "ci95_high": 67.5315564694661,
+      "ci95_low": 45.12485576507195,
+      "mean": 55.98772011950535,
+      "n_eligible_patients": 50,
+      "n_patients": 50,
+      "n_slices": 657
+    }
+  },
+  "metric_policy": {
+    "all_slices_absent_class": "both_absent_perfect_one_absent_diagonal_penalty",
+    "confidence_interval": "patient_cluster_bootstrap",
+    "metrics": [
+      "dice",
+      "hd95_2d_px"
+    ],
+    "point_estimate_weighting": "slice_equal",
+    "views": [
+      "all_slices",
+      "foreground_present"
+    ]
+  },
+  "point_estimate_weighting": "slice_equal"
+}

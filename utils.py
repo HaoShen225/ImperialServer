@@ -61,6 +61,7 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         "rotta": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "optimizer", "lr", "beta", "weight_decay", "teacher_nu", "rbn_alpha", "memory_capacity", "update_frequency", "memory_category_key", "lambda_timeliness", "lambda_uncertainty"},
         "roid": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "probability_momentum", "temperature", "source_weight_momentum", "consistency", "prior_correction"},
         "deyo": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "entropy_margin_factor", "entropy_weight_margin_factor", "plpd_threshold", "patch_grid", "foreground_only"},
+        "grata": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "beta1", "beta2", "weight_decay", "perturbation_scale", "cosine_epsilon", "weak_views", "strong_augmentation"},
     }
     _reject_unknown_keys(cfg["methods"], set(method_keys), "methods")
     for name, allowed in method_keys.items():
@@ -79,6 +80,66 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         raise ValueError("The locked CoTTA profile requires the official seven scales")
     if [bool(value) for value in cotta["augmentation_flips"]] != [False, True]:
         raise ValueError("The locked CoTTA profile requires unflipped and flipped views")
+
+    grata = cfg["methods"]["grata"]
+    expected_grata = {
+        "profile_kind": "official_mechanism_mms_multiclass",
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "bn_policy": "batch_no_running",
+        "optimizer": "adam",
+        "lr": 1e-4,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "weight_decay": 0.0,
+        "perturbation_scale": 1.0,
+        "cosine_epsilon": 1e-12,
+        "weak_views": [
+            "identity", "horizontal_flip", "vertical_flip",
+            "rotate_90", "rotate_180", "rotate_270",
+        ],
+    }
+    for key, expected in expected_grata.items():
+        if grata.get(key) != expected:
+            raise ValueError(
+                f"The locked GraTA profile requires {key}={expected!r}, "
+                f"got {grata.get(key)!r}"
+            )
+    strong_keys = {
+        "brightness_range", "brightness_probability",
+        "contrast_range", "contrast_probability",
+        "gamma_range", "gamma_probability",
+        "noise_std_range", "noise_probability",
+        "blur_sigma_range", "blur_probability", "blur_channel_probability",
+    }
+    strong = grata.get("strong_augmentation")
+    if not isinstance(strong, Mapping):
+        raise ValueError("methods.grata.strong_augmentation must be a mapping")
+    _reject_unknown_keys(strong, strong_keys, "methods.grata.strong_augmentation")
+    if set(strong) != strong_keys:
+        raise ValueError(
+            "Missing GraTA strong augmentation setting(s): "
+            f"{sorted(strong_keys - set(strong))}"
+        )
+    expected_strong = {
+        "brightness_range": [0.5, 1.5],
+        "brightness_probability": 0.75,
+        "contrast_range": [0.5, 1.5],
+        "contrast_probability": 0.75,
+        "gamma_range": [0.5, 2.0],
+        "gamma_probability": 0.75,
+        "noise_std_range": [0.0, 0.05],
+        "noise_probability": 0.5,
+        "blur_sigma_range": [0.5, 1.5],
+        "blur_probability": 0.5,
+        "blur_channel_probability": 0.5,
+    }
+    for key, expected in expected_strong.items():
+        if strong.get(key) != expected:
+            raise ValueError(
+                f"The locked GraTA augmentation requires {key}={expected!r}, "
+                f"got {strong.get(key)!r}"
+            )
 
     if cfg["evaluation"]["grid"] != "processed_256":
         raise ValueError("This locked profile supports only processed_256 evaluation")

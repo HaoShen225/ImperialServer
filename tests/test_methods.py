@@ -22,7 +22,7 @@ def test_every_method_constructs_and_processes(name, config, tiny_model, images)
     assert "parameter_drift" in info.extras
 
 
-@pytest.mark.parametrize("name", ["tbn", "tent", "eata", "sar", "cotta", "roid", "deyo"])
+@pytest.mark.parametrize("name", ["tbn", "tent", "eata", "sar", "cotta", "roid", "deyo", "grata"])
 def test_batch_stat_methods_have_no_running_buffers(name, config, tiny_model):
     method = build_method(name, deepcopy(tiny_model), method_config(config, name), config["tta"], torch.device("cpu"))
     for module in method.model.modules():
@@ -243,7 +243,7 @@ def test_sar_second_filter_is_subset_of_first(config, tiny_model, images, monkey
     assert torch.all(second <= first)
 
 
-@pytest.mark.parametrize("name", ["cotta", "rotta", "roid", "deyo"])
+@pytest.mark.parametrize("name", ["cotta", "rotta", "roid", "deyo", "grata"])
 def test_stochastic_method_reset_replays_exactly(name, config, tiny_model, images):
     method = build_method(name, deepcopy(tiny_model), method_config(config, name), config["tta"], torch.device("cpu"))
     first_logits, first_info = method.process_batch(images)

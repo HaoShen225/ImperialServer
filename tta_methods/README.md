@@ -1,6 +1,6 @@
 # 测试时适配方法说明
 
-本目录实现统一协议下的九种测试时适配方法。所有方法直接继承 `BaseTTA`，共享相同源 checkpoint、目标流、arrival batch、timing 和 reset policy。
+本目录实现统一协议下的十种测试时适配方法。所有方法直接继承 `BaseTTA`，共享相同源 checkpoint、目标流、arrival batch、timing 和 reset policy。
 
 ## 公共接口
 
@@ -29,6 +29,7 @@ predict(images)         # 返回 logits，不修改适配状态
 | RoTTA | 用 RBN 替换 BN，维护 EMA teacher 与 CSTU memory |
 | RoID | BN affine、soft-likelihood-ratio、certainty/diversity weighting 和源权重融合 |
 | DeYO | BN affine、patch shuffle、前景像素 entropy/PLPD 过滤 |
+| GraTA | BN affine、entropy/consistency 梯度对齐和 cosine 动态学习率 |
 
 正式 TENT profile 固定为：全部 BN affine、普通像素熵、每个 arrival batch 更新一步、`SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)`；病人流使用 BS=4，随机切片流使用 BS=8。
 
@@ -37,6 +38,8 @@ TBN 是不含梯度更新的 batch-statistics-only 基线。模型保持 `eval()
 正式 SAR profile 保留官方两阶段 SAM 机制：第一次反传只构造 sharpness perturbation，第二次筛选是第一次筛选的子集，随后由底层 `SGD(lr=6.25e-5, momentum=0.9, weight_decay=0)` 执行实际更新。运行记录额外报告两轮筛选伪标签的全像素准确率、真值前景像素准确率和筛选覆盖率；真实 mask 始终位于适配边界之外。
 
 正式 CoTTA profile 采用分割论文机制：更新全模型、`Adam(lr=7.5e-6, betas=(0.9, 0.999), weight_decay=0)`、EMA teacher（momentum 0.999）、source anchor 置信度门控、7 个尺度乘以水平翻转/不翻转的 14-view teacher ensemble，以及每个参数元素 0.01 概率的随机源权重恢复。两种目标流使用同一绝对学习率；病人流 BS=4，随机切片流 BS=8。网络和 arrival batch 与原论文不同，因此 profile 标记为 `official_segmentation_mms_adapted`。
+
+正式 GraTA profile 保留论文的隐式梯度对齐：先用原图 entropy 梯度构造临时参数，再在临时参数上计算六个弱几何视图与一个强风格视图的一致性梯度，最后恢复参数并以 `Adam` 和 cosine 动态学习率更新全部 BN affine。原论文使用两个可重叠 sigmoid 输出，本项目改为 M&Ms 的四类互斥 softmax entropy 与 soft cross-entropy，因此 profile 标记为 `official_mechanism_mms_multiclass`。缩放因子固定为 `1e-4`，病人流使用 BS=4，随机切片流使用 BS=8。
 
 ## SEG-MOD
 

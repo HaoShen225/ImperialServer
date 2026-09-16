@@ -52,3 +52,4 @@
 - Tent、CoTTA、GRaTA 均取学习率 1e-3；SAR 在病人 BS=4、切片 BS=8 时取学习率 6.25e-5，在病人 BS=8、切片 BS=4 时取学习率 1e-3；Source 不含优化器。
 - 四组协议的 Source、SAR、Tent、CoTTA、GRaTA 结果均完整。
 - 新增的病人 BS=8 与切片 BS=4 SAR 结果来自 `dual_protocol_patient_bs8_slice_bs4/adaptive_lr_1e-3/sar/` 下的 10 个完整运行（两个协议 × 五个种子）；病人口径使用 patient-level 宏指标，切片口径使用 `all_slices` 的 slice-equal 宏指标。
+- 最终决定使用：学习率为1e-3, BS=8

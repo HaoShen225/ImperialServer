@@ -9,6 +9,7 @@ from .cotta.method import CoTTA
 from .deyo.method import DeYO
 from .eata.method import EATA
 from .grata.method import GraTA
+from .grata_adaption.method import GraTAAdaption
 from .roid.method import RoID
 from .rotta.method import RoTTA
 from .sar.method import SAR
@@ -28,6 +29,10 @@ METHODS = {
     "roid": RoID,
     "deyo": DeYO,
     "grata": GraTA,
+    "grata_adaption_global_hard": GraTAAdaption,
+    "grata_adaption_global_smooth": GraTAAdaption,
+    "grata_adaption_classwise_hard": GraTAAdaption,
+    "grata_adaption_classwise_smooth": GraTAAdaption,
 }
 
 

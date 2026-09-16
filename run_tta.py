@@ -180,6 +180,193 @@ def attach_entropy_label_probe(
     return _aggregate_probe_counts(probes) if probes else None
 
 
+_CSL_CLASS_NAMES = {0: "bg", 1: "rv", 2: "myo", 3: "lv"}
+
+
+def _finalize_csl_counts(counts: dict[str, Any]) -> dict[str, Any]:
+    seen_pixels = int(counts["seen_pixels"])
+    reliable_pixels = int(counts["reliable_pixels"])
+    weight_sum = float(counts["weight_sum"])
+    foreground_pixels = int(counts["gt_foreground_pixels"])
+    reliable_foreground = int(counts["reliable_gt_foreground_pixels"])
+    result = {
+        **counts,
+        "reliable_coverage": reliable_pixels / seen_pixels if seen_pixels else None,
+        "reliable_accuracy": (
+            int(counts["correct_reliable_pixels"]) / reliable_pixels
+            if reliable_pixels
+            else None
+        ),
+        "effective_weight_coverage": weight_sum / seen_pixels if seen_pixels else None,
+        "weighted_accuracy": (
+            float(counts["weighted_correct_pixels"]) / weight_sum
+            if weight_sum > 0.0
+            else None
+        ),
+        "reliable_foreground_coverage": (
+            reliable_foreground / foreground_pixels if foreground_pixels else None
+        ),
+        "reliable_foreground_accuracy": (
+            int(counts["correct_reliable_foreground_pixels"]) / reliable_foreground
+            if reliable_foreground
+            else None
+        ),
+        "weighted_foreground_accuracy": (
+            float(counts["weighted_correct_foreground_pixels"])
+            / float(counts["foreground_weight_sum"])
+            if float(counts["foreground_weight_sum"]) > 0.0
+            else None
+        ),
+    }
+    per_class = {}
+    for class_name, class_counts in counts["per_class"].items():
+        predicted_pixels = int(class_counts["predicted_pixels"])
+        class_reliable = int(class_counts["reliable_pixels"])
+        class_weight_sum = float(class_counts["weight_sum"])
+        per_class[class_name] = {
+            **class_counts,
+            "reliable_coverage": (
+                class_reliable / predicted_pixels if predicted_pixels else None
+            ),
+            "reliable_accuracy": (
+                int(class_counts["correct_reliable_pixels"]) / class_reliable
+                if class_reliable
+                else None
+            ),
+            "effective_weight_coverage": (
+                class_weight_sum / predicted_pixels if predicted_pixels else None
+            ),
+            "weighted_accuracy": (
+                float(class_counts["weighted_correct_pixels"]) / class_weight_sum
+                if class_weight_sum > 0.0
+                else None
+            ),
+        }
+    result["per_class"] = per_class
+    return result
+
+
+def _csl_probe_counts(
+    payload: dict[str, torch.Tensor], target: torch.Tensor
+) -> dict[str, Any]:
+    selected = payload["selected"].to(dtype=torch.bool, device="cpu")
+    labels = payload["labels"].to(dtype=torch.long, device="cpu")
+    weights = payload["weights"].to(dtype=torch.float64, device="cpu")
+    target = target.to(dtype=torch.long, device="cpu")
+    if selected.shape != target.shape or labels.shape != target.shape or weights.shape != target.shape:
+        raise ValueError("CSL probe tensors must match the pixel-level target shape")
+    if not torch.isfinite(weights).all() or bool((weights < 0.0).any()) or bool((weights > 1.0).any()):
+        raise ValueError("CSL probe weights must be finite and lie in [0, 1]")
+
+    correct = labels == target
+    foreground = target > 0
+    reliable_foreground = selected & foreground
+    foreground_weights = weights * foreground
+    counts: dict[str, Any] = {
+        "seen_slices": int(target.shape[0]),
+        "slices_with_reliable_pixels": int(selected.flatten(1).any(dim=1).sum()),
+        "seen_pixels": int(target.numel()),
+        "reliable_pixels": int(selected.sum()),
+        "correct_reliable_pixels": int((selected & correct).sum()),
+        "weight_sum": float(weights.sum()),
+        "weighted_correct_pixels": float((weights * correct).sum()),
+        "gt_foreground_pixels": int(foreground.sum()),
+        "reliable_gt_foreground_pixels": int(reliable_foreground.sum()),
+        "correct_reliable_foreground_pixels": int((reliable_foreground & correct).sum()),
+        "foreground_weight_sum": float(foreground_weights.sum()),
+        "weighted_correct_foreground_pixels": float((foreground_weights * correct).sum()),
+        "per_class": {},
+    }
+    for class_id, class_name in _CSL_CLASS_NAMES.items():
+        predicted = labels == class_id
+        reliable = selected & predicted
+        class_weights = weights * predicted
+        counts["per_class"][class_name] = {
+            "predicted_pixels": int(predicted.sum()),
+            "reliable_pixels": int(reliable.sum()),
+            "correct_reliable_pixels": int((reliable & correct).sum()),
+            "weight_sum": float(class_weights.sum()),
+            "weighted_correct_pixels": float((class_weights * correct).sum()),
+        }
+    return _finalize_csl_counts(counts)
+
+
+def _aggregate_csl_probe_counts(probes: list[dict[str, Any]]) -> dict[str, Any]:
+    scalar_keys = (
+        "seen_slices",
+        "slices_with_reliable_pixels",
+        "seen_pixels",
+        "reliable_pixels",
+        "correct_reliable_pixels",
+        "weight_sum",
+        "weighted_correct_pixels",
+        "gt_foreground_pixels",
+        "reliable_gt_foreground_pixels",
+        "correct_reliable_foreground_pixels",
+        "foreground_weight_sum",
+        "weighted_correct_foreground_pixels",
+    )
+    counts: dict[str, Any] = {
+        key: sum(probe[key] for probe in probes) for key in scalar_keys
+    }
+    counts["per_class"] = {
+        class_name: {
+            key: sum(probe["per_class"][class_name][key] for probe in probes)
+            for key in (
+                "predicted_pixels",
+                "reliable_pixels",
+                "correct_reliable_pixels",
+                "weight_sum",
+                "weighted_correct_pixels",
+            )
+        }
+        for class_name in _CSL_CLASS_NAMES.values()
+    }
+    return _finalize_csl_counts(counts)
+
+
+def attach_csl_label_probe(
+    adaptation_records: list[dict[str, Any]], target: torch.Tensor
+) -> dict[str, Any] | None:
+    """Score CSL selections after adaptation; labels never cross the method boundary."""
+    offset = 0
+    probes = []
+    for record in adaptation_records:
+        batch_size = int(record["arrival_batch_size"])
+        batch_target = target[offset : offset + batch_size].cpu()
+        offset += batch_size
+        payload = record.pop("_probe_payload", None)
+        if payload is None:
+            continue
+        if set(payload) != {"csl_reliable"}:
+            raise ValueError("Unexpected probe stages for a CSL adaptation record")
+        probe = _csl_probe_counts(payload["csl_reliable"], batch_target)
+        record["csl_label_probe"] = probe
+        probes.append(probe)
+    if offset != int(target.shape[0]):
+        raise ValueError("Adaptation batches do not cover the complete target volume")
+    return _aggregate_csl_probe_counts(probes) if probes else None
+
+
+def attach_method_label_probe(
+    adaptation_records: list[dict[str, Any]], target: torch.Tensor
+) -> tuple[str, dict[str, Any]] | None:
+    stages = {
+        stage
+        for record in adaptation_records
+        for stage in (record.get("_probe_payload") or {})
+    }
+    if not stages:
+        return None
+    if stages == {"csl_reliable"}:
+        probe = attach_csl_label_probe(adaptation_records, target)
+        return ("csl_label_probe", probe) if probe is not None else None
+    if stages == {"first_filter", "second_filter"}:
+        probe = attach_entropy_label_probe(adaptation_records, target)
+        return ("entropy_label_probe", probe) if probe is not None else None
+    raise ValueError(f"Unsupported method probe stages: {sorted(stages)}")
+
+
 def _write_jsonl(records: list[dict[str, Any]], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -301,9 +488,9 @@ def run_slice_experiment(
             targets = dataset.load_masks(list(batch["mask_path"]))
             if probe_payload is not None:
                 adaptation["_probe_payload"] = probe_payload
-                entropy_probe = attach_entropy_label_probe([adaptation], targets)
+                label_probe = attach_method_label_probe([adaptation], targets)
             else:
-                entropy_probe = None
+                label_probe = None
             slice_ids = list(batch["slice_id"])
             batch_record = {
                 "method": method_name,
@@ -317,8 +504,9 @@ def run_slice_experiment(
                 "slice_order_sha256": dataset.slice_order_sha256,
                 "slice_filter": dataset.slice_filter,
             }
-            if entropy_probe is not None:
-                batch_record["entropy_label_probe"] = entropy_probe
+            if label_probe is not None:
+                probe_name, probe_value = label_probe
+                batch_record[probe_name] = probe_value
             batch_records.append(batch_record)
 
             for batch_position in range(int(predictions.shape[0])):
@@ -442,7 +630,7 @@ def run_experiment(
                 method, volume["image"], int(cfg["tta"]["batch_size"]), device
             )
             target = dataset.load_mask(volume)
-            entropy_label_probe = attach_entropy_label_probe(adaptation_records, target)
+            label_probe = attach_method_label_probe(adaptation_records, target)
             classes = [int(value) for value in cfg["evaluation"]["classes"]]
             _validate_evaluation_target(
                 target, classes, vendor, volume["patient_id"], volume["phase"]
@@ -484,8 +672,9 @@ def run_experiment(
                 "target_stream_sha256": stream_hash,
                 "trainable_parameters": method.trainable_parameter_names(),
             }
-            if entropy_label_probe is not None:
-                record["entropy_label_probe"] = entropy_label_probe
+            if label_probe is not None:
+                probe_name, probe_value = label_probe
+                record[probe_name] = probe_value
             records.append(record)
         _write_jsonl(records, result_root / f"vendor_{vendor}.jsonl")
         summary = aggregate_results(

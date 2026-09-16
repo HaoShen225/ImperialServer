@@ -9,6 +9,7 @@
 | `test_data.py` | 前景切片过滤、患者划分无重叠、B/C/D volume/随机切片目标流、C 无标注排除、顺序哈希、尾 batch、mask 延迟加载 |
 | `test_metrics.py` | 3D/2D Dice 与 HD95、缺失类别有限对角线惩罚、患者级和逐切片患者聚类 bootstrap |
 | `test_grata.py` | GraTA 六视图逆变换、确定性强增强、梯度 cosine/动态学习率、BN affine 更新与 reset 重放 |
+| `test_grata_adaption.py` | GraTA-Adaption 单次 teacher、逐图随机弱视图、四种 CSL selector、加权损失和无标签泄漏 probe |
 | `test_grata_lr_sweep.py` | GraTA 动态学习率上限解析、双协议配置隔离和六个候选值的有限单步更新 |
 | `test_model.py` | ResUNet-34 输出形状、随机初始化可复现性、decoder BN、CE+Dice 和 AdamW 参数组 |
 | `test_protocol.py` | 无标签 `run_volume` 边界、空标签防护、mask permutation immunity、两种 timing |

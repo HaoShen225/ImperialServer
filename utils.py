@@ -51,6 +51,13 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
             "data.slice_filter must be the locked manifest_has_fg_equals_1 policy"
         )
 
+    grata_adaption_keys = {
+        "profile_verified", "profile_kind", "method_seed", "steps", "update_scope",
+        "bn_policy", "optimizer", "lr", "beta1", "beta2", "weight_decay",
+        "perturbation_scale", "cosine_epsilon", "weak_views", "weak_view_samples",
+        "selector_scope", "weight_mode", "csl_alpha", "csl_epsilon",
+        "classwise_min_pixels", "loss_normalization", "strong_augmentation",
+    }
     method_keys = {
         "source": {"profile_verified", "profile_kind", "method_seed"},
         "tbn": {"profile_verified", "profile_kind", "method_seed", "update_scope", "bn_policy"},
@@ -62,6 +69,10 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
         "roid": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "probability_momentum", "temperature", "source_weight_momentum", "consistency", "prior_correction"},
         "deyo": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "momentum", "weight_decay", "entropy_margin_factor", "entropy_weight_margin_factor", "plpd_threshold", "patch_grid", "foreground_only"},
         "grata": {"profile_verified", "profile_kind", "method_seed", "steps", "update_scope", "bn_policy", "optimizer", "lr", "beta1", "beta2", "weight_decay", "perturbation_scale", "cosine_epsilon", "weak_views", "strong_augmentation"},
+        "grata_adaption_global_hard": grata_adaption_keys,
+        "grata_adaption_global_smooth": grata_adaption_keys,
+        "grata_adaption_classwise_hard": grata_adaption_keys,
+        "grata_adaption_classwise_smooth": grata_adaption_keys,
     }
     _reject_unknown_keys(cfg["methods"], set(method_keys), "methods")
     for name, allowed in method_keys.items():
@@ -140,6 +151,67 @@ def validate_config(cfg: Mapping[str, Any]) -> None:
                 f"The locked GraTA augmentation requires {key}={expected!r}, "
                 f"got {strong.get(key)!r}"
             )
+
+    grata_adaption_variants = {
+        "grata_adaption_global_hard": ("global", "hard"),
+        "grata_adaption_global_smooth": ("global", "smooth"),
+        "grata_adaption_classwise_hard": ("classwise", "hard"),
+        "grata_adaption_classwise_smooth": ("classwise", "smooth"),
+    }
+    expected_grata_adaption = {
+        "profile_verified": True,
+        "profile_kind": "experimental_grata_csl_reliable_consistency",
+        "method_seed": 4101,
+        "steps": 1,
+        "update_scope": "bn_affine",
+        "bn_policy": "batch_no_running",
+        "optimizer": "adam",
+        "lr": 1e-4,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "weight_decay": 0.0,
+        "perturbation_scale": 1.0,
+        "cosine_epsilon": 1e-12,
+        "weak_views": [
+            "identity", "horizontal_flip", "vertical_flip",
+            "rotate_90", "rotate_180", "rotate_270",
+        ],
+        "weak_view_samples": 1,
+        "csl_alpha": 8.0,
+        "csl_epsilon": 1e-8,
+        "classwise_min_pixels": 128,
+        "loss_normalization": "weight_sum",
+    }
+    for name, (selector_scope, weight_mode) in grata_adaption_variants.items():
+        profile = cfg["methods"][name]
+        expected = {
+            **expected_grata_adaption,
+            "selector_scope": selector_scope,
+            "weight_mode": weight_mode,
+        }
+        for key, value in expected.items():
+            if profile.get(key) != value:
+                raise ValueError(
+                    f"The locked {name} profile requires {key}={value!r}, "
+                    f"got {profile.get(key)!r}"
+                )
+        variant_strong = profile.get("strong_augmentation")
+        if not isinstance(variant_strong, Mapping):
+            raise ValueError(f"methods.{name}.strong_augmentation must be a mapping")
+        _reject_unknown_keys(
+            variant_strong, strong_keys, f"methods.{name}.strong_augmentation"
+        )
+        if set(variant_strong) != strong_keys:
+            raise ValueError(
+                f"Missing {name} strong augmentation setting(s): "
+                f"{sorted(strong_keys - set(variant_strong))}"
+            )
+        for key, value in expected_strong.items():
+            if variant_strong.get(key) != value:
+                raise ValueError(
+                    f"The locked {name} augmentation requires {key}={value!r}, "
+                    f"got {variant_strong.get(key)!r}"
+                )
 
     if cfg["evaluation"]["grid"] != "processed_256":
         raise ValueError("This locked profile supports only processed_256 evaluation")

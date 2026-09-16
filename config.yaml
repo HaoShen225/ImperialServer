@@ -216,3 +216,53 @@ methods:
       blur_sigma_range: [0.5, 1.5]
       blur_probability: 0.5
       blur_channel_probability: 0.5
+  grata_adaption_global_hard: &grata_adaption_global_hard
+    profile_verified: true
+    profile_kind: experimental_grata_csl_reliable_consistency
+    method_seed: 4101
+    steps: 1
+    update_scope: bn_affine
+    bn_policy: batch_no_running
+    optimizer: adam
+    lr: 0.0001
+    beta1: 0.9
+    beta2: 0.999
+    weight_decay: 0.0
+    perturbation_scale: 1.0
+    cosine_epsilon: 0.000000000001
+    weak_views:
+      [identity, horizontal_flip, vertical_flip, rotate_90, rotate_180, rotate_270]
+    weak_view_samples: 1
+    selector_scope: global
+    weight_mode: hard
+    csl_alpha: 8.0
+    csl_epsilon: 0.00000001
+    classwise_min_pixels: 128
+    loss_normalization: weight_sum
+    strong_augmentation: &grata_adaption_strong_augmentation
+      brightness_range: [0.5, 1.5]
+      brightness_probability: 0.75
+      contrast_range: [0.5, 1.5]
+      contrast_probability: 0.75
+      gamma_range: [0.5, 2.0]
+      gamma_probability: 0.75
+      noise_std_range: [0.0, 0.05]
+      noise_probability: 0.5
+      blur_sigma_range: [0.5, 1.5]
+      blur_probability: 0.5
+      blur_channel_probability: 0.5
+  grata_adaption_global_smooth:
+    <<: *grata_adaption_global_hard
+    selector_scope: global
+    weight_mode: smooth
+    strong_augmentation: *grata_adaption_strong_augmentation
+  grata_adaption_classwise_hard:
+    <<: *grata_adaption_global_hard
+    selector_scope: classwise
+    weight_mode: hard
+    strong_augmentation: *grata_adaption_strong_augmentation
+  grata_adaption_classwise_smooth:
+    <<: *grata_adaption_global_hard
+    selector_scope: classwise
+    weight_mode: smooth
+    strong_augmentation: *grata_adaption_strong_augmentation
